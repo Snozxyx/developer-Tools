@@ -408,7 +408,7 @@ const GitHubImageGenerator = () => {
   };
 
   return (
-    <section id="tools" className="py-24 px-6">
+    <section id="tools" className="min-h-screen py-24 px-6">
       <div className="max-w-7xl mx-auto">
         <div className="text-center mb-16 animate-fade-up">
           <h2 className="font-serif font-bold text-5xl md:text-6xl mb-4">
