@@ -7,7 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Slider } from "@/components/ui/slider";
-import { Download, RefreshCw, Upload, Image as ImageIcon, Sparkles, Copy, Save, FolderOpen, Zap, Move, Palette, Layers } from "lucide-react";
+import { Download, RefreshCw, Upload, Image as ImageIcon, Sparkles, Copy, Save, FolderOpen, Move, Palette, Layers } from "lucide-react";
 import { toast } from "sonner";
 import { Switch } from "@/components/ui/switch";
 
@@ -83,8 +83,6 @@ const GitHubImageGenerator = () => {
   const [shadowIntensity, setShadowIntensity] = useState(20);
   const [borderRadius, setBorderRadius] = useState(0);
   const [savedDesigns, setSavedDesigns] = useState<SavedDesign[]>([]);
-  const [animationSpeed] = useState(1000);
-  const [isAnimating, setIsAnimating] = useState(false);
   
   // New advanced features
   const [bgBlur, setBgBlur] = useState(0);
@@ -94,15 +92,14 @@ const GitHubImageGenerator = () => {
   const [overlayOpacity, setOverlayOpacity] = useState(60);
   const [secondaryText, setSecondaryText] = useState("Built with ❤️");
   const [badges, setBadges] = useState<string[]>(["TypeScript", "React", "Node.js"]);
-  const [isDragging, setIsDragging] = useState(false);
-  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+  const [faviconUrl, setFaviconUrl] = useState("https://github.githubassets.com/favicons/favicon.svg");
 
   useEffect(() => {
     generateImage();
   }, [repoName, description, username, tagline, bgColor, accentColor, textColor,
       useGradient, titleFont, bodyFont, titleSize, descriptionSize, layout,
       pattern, patternOpacity, bgImage, logoImage, stats, showStats, icon, shadowIntensity, 
-      borderRadius, bgBlur, glowEffect, textStroke, textAlign, overlayOpacity, secondaryText, badges]);
+      borderRadius, bgBlur, glowEffect, textStroke, textAlign, overlayOpacity, secondaryText, badges, faviconUrl]);
 
   useEffect(() => {
     const saved = localStorage.getItem('savedGitHubDesigns');
@@ -435,7 +432,7 @@ const GitHubImageGenerator = () => {
     ctx.fill();
   };
 
-  const drawStats = (ctx: CanvasRenderingContext2D, x: number, y: number) => {
+  const drawStats = async (ctx: CanvasRenderingContext2D, x: number, y: number) => {
     if (!showStats) return;
 
     const statItems = [
@@ -447,6 +444,46 @@ const GitHubImageGenerator = () => {
     ctx.textAlign = "center";
     ctx.font = `600 24px ${getFontFamily(bodyFont)}`;
 
+    const spacing = 150;
+    const startX = x - spacing;
+
+    // Load and draw favicon if URL is provided
+    if (faviconUrl) {
+      try {
+        const faviconImg = new Image();
+        faviconImg.crossOrigin = "anonymous";
+        await new Promise<void>((resolve, reject) => {
+          faviconImg.onload = () => resolve();
+          faviconImg.onerror = () => reject();
+          faviconImg.src = faviconUrl;
+        });
+        
+        statItems.forEach((item, i) => {
+          const itemX = startX + (i * spacing);
+
+          ctx.fillStyle = accentColor + "30";
+          ctx.fillRect(itemX - 60, y - 20, 120, 70);
+
+          // Draw favicon instead of emoji
+          ctx.drawImage(faviconImg, itemX - 15, y - 15, 30, 30);
+          
+          ctx.fillStyle = textColor;
+          ctx.font = `700 28px ${getFontFamily(bodyFont)}`;
+          ctx.fillText(item.value, itemX, y + 35);
+          ctx.font = `600 24px ${getFontFamily(bodyFont)}`;
+        });
+      } catch (error) {
+        // Fallback to emoji if favicon fails to load
+        drawStatsFallback(ctx, x, y, statItems);
+      }
+    } else {
+      drawStatsFallback(ctx, x, y, statItems);
+    }
+  };
+
+  const drawStatsFallback = (ctx: CanvasRenderingContext2D, x: number, y: number, statItems: Array<{icon: string; value: string; label: string}>) => {
+    ctx.textAlign = "center";
+    ctx.font = `600 24px ${getFontFamily(bodyFont)}`;
     const spacing = 150;
     const startX = x - spacing;
 
@@ -1239,26 +1276,6 @@ const GitHubImageGenerator = () => {
     });
   };
 
-  const animateRandomColors = () => {
-    if (isAnimating) {
-      setIsAnimating(false);
-      return;
-    }
-
-    setIsAnimating(true);
-    const colors = ["#ff6b35", "#4ecdc4", "#ffe66d", "#ff6b9d", "#95e1d3", "#a8e6cf", "#ffd3b6"];
-    let index = 0;
-
-    const interval = setInterval(() => {
-      setAccentColor(colors[index % colors.length]);
-      index++;
-      if (index > 10) {
-        clearInterval(interval);
-        setIsAnimating(false);
-      }
-    }, animationSpeed);
-  };
-
   const exportConfig = () => {
     const config = {
       repoName, description, username, tagline, bgColor, accentColor, textColor,
@@ -1414,6 +1431,17 @@ const GitHubImageGenerator = () => {
                       </div>
                     </div>
                   )}
+                  
+                  <div className="space-y-2 pt-2">
+                    <Label htmlFor="favicon-url">Repository Favicon URL</Label>
+                    <Input
+                      id="favicon-url"
+                      value={faviconUrl}
+                      onChange={(e) => setFaviconUrl(e.target.value)}
+                      placeholder="https://github.githubassets.com/favicons/favicon.svg"
+                    />
+                    <p className="text-xs text-muted-foreground">Icon shown with stats (leave default for GitHub icon)</p>
+                  </div>
                 </div>
 
                 <div className="space-y-2 pt-4 border-t border-border">
@@ -1562,11 +1590,7 @@ const GitHubImageGenerator = () => {
                 <div className="flex gap-2">
                   <Button onClick={randomizeColors} variant="outline" className="flex-1">
                     <Sparkles className="w-4 h-4 mr-2" />
-                    Randomize
-                  </Button>
-                  <Button onClick={animateRandomColors} variant="outline" className="flex-1">
-                    <Zap className="w-4 h-4 mr-2" />
-                    {isAnimating ? "Stop" : "Animate"}
+                    Randomize Colors
                   </Button>
                 </div>
               </TabsContent>
@@ -1706,8 +1730,20 @@ const GitHubImageGenerator = () => {
                   )}
                 </div>
 
+                <div className="space-y-2 pt-4 border-t border-border">
+                  <Label>Background Blur: {bgBlur}px</Label>
+                  <Slider value={[bgBlur]} onValueChange={(v) => setBgBlur(v[0])} min={0} max={30} step={2} />
+                  <p className="text-xs text-muted-foreground">Blur the background image for a softer look</p>
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Overlay Opacity: {overlayOpacity}%</Label>
+                  <Slider value={[overlayOpacity]} onValueChange={(v) => setOverlayOpacity(v[0])} min={0} max={100} step={10} />
+                  <p className="text-xs text-muted-foreground">Add a dark overlay over the background</p>
+                </div>
+
                 <div className="pt-4 border-t border-border">
-                  <p className="text-sm text-muted mb-2">Quick tip: Upload a transparent PNG logo for best results</p>
+                  <p className="text-sm text-muted-foreground">Quick tip: Upload a transparent PNG logo for best results</p>
                 </div>
               </TabsContent>
             </Tabs>
