@@ -13,9 +13,12 @@ import { Switch } from "@/components/ui/switch";
 
 type LayoutTemplate = "modern" | "minimal" | "bold" | "gaming" | "gradient" | "glassmorphism" | "neon" | "retro" | "tech" | "corporate" | "cyberpunk" | "elegant";
 type PatternType = "circles" | "grid" | "dots" | "waves" | "hexagons" | "triangles" | "stars" | "mesh" | "noise" | "none";
-type FontFamily = "poppins" | "inter" | "sourcecodepro" | "roboto" | "montserrat" | "playfair" | "orbitron";
+type FontFamily = "poppins" | "inter" | "sourcecodepro" | "roboto" | "montserrat" | "playfair" | "orbitron" | "lato" | "opensans" | "raleway" | "nunito" | "ubuntu" | "merriweather" | "josefinsans" | "inconsolata" | "firamono" | "outfit" | "spacegrotesk" | "manrope" | "worksans" | "dmsans" | "plusjakarta" | "bevietnampro" | "redhatdisplay" | "jetbrainsmono" | "ibmplexmono" | "spacemono" | "arcadeclass" | "pressstart2p" | "vt323";
 type IconType = "none" | "star" | "fork" | "eye" | "zap" | "shield";
 type TextAlign = "left" | "center" | "right";
+type FontWeight = "300" | "400" | "500" | "600" | "700" | "800" | "900";
+type TextTransform = "none" | "uppercase" | "lowercase" | "capitalize";
+type GradientType = "linear" | "radial" | "conic";
 
 interface SavedDesign {
   id: string;
@@ -49,6 +52,17 @@ interface DesignConfig {
   textStroke: boolean;
   textAlign: TextAlign;
   overlayOpacity: number;
+  titleWeight?: FontWeight;
+  bodyWeight?: FontWeight;
+  letterSpacing?: number;
+  lineHeight?: number;
+  textTransform?: TextTransform;
+  gradientType?: GradientType;
+  gradientAngle?: number;
+  secondaryAccentColor?: string;
+  brightness?: number;
+  contrast?: number;
+  saturation?: number;
 }
 
 const GitHubImageGenerator = () => {
@@ -93,13 +107,70 @@ const GitHubImageGenerator = () => {
   const [secondaryText, setSecondaryText] = useState("Built with ❤️");
   const [badges, setBadges] = useState<string[]>(["TypeScript", "React", "Node.js"]);
   const [faviconUrl, setFaviconUrl] = useState("https://github.githubassets.com/favicons/favicon.svg");
+  
+  // Additional advanced styling features
+  const [titleWeight, setTitleWeight] = useState<FontWeight>("700");
+  const [bodyWeight, setBodyWeight] = useState<FontWeight>("400");
+  const [letterSpacing, setLetterSpacing] = useState(0);
+  const [lineHeight, setLineHeight] = useState(1.2);
+  const [textTransform, setTextTransform] = useState<TextTransform>("none");
+  const [gradientType, setGradientType] = useState<GradientType>("linear");
+  const [gradientAngle, setGradientAngle] = useState(135);
+  const [secondaryAccentColor, setSecondaryAccentColor] = useState("#4ecdc4");
+  const [brightness, setBrightness] = useState(100);
+  const [contrast, setContrast] = useState(100);
+  const [saturation, setSaturation] = useState(100);
+  
+  // Undo/Redo history
+  const [history, setHistory] = useState<DesignConfig[]>([]);
+  const [historyIndex, setHistoryIndex] = useState(-1);
+  const [isRestoringHistory, setIsRestoringHistory] = useState(false);
+
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handleKeyPress = (e: KeyboardEvent) => {
+      // Undo: Ctrl+Z (or Cmd+Z on Mac)
+      if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
+        e.preventDefault();
+        undo();
+      }
+      // Redo: Ctrl+Shift+Z or Ctrl+Y (or Cmd equivalents on Mac)
+      if (((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'z') || 
+          ((e.ctrlKey || e.metaKey) && e.key === 'y')) {
+        e.preventDefault();
+        redo();
+      }
+      // Save: Ctrl+S (or Cmd+S on Mac)
+      if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+        e.preventDefault();
+        saveDesign();
+      }
+      // Download: Ctrl+D (or Cmd+D on Mac)
+      if ((e.ctrlKey || e.metaKey) && e.key === 'd') {
+        e.preventDefault();
+        downloadImage();
+      }
+      // Copy: Ctrl+C (or Cmd+C on Mac) - only when not in an input
+      if ((e.ctrlKey || e.metaKey) && e.key === 'c' && !(e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement)) {
+        e.preventDefault();
+        copyImageToClipboard();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyPress);
+    return () => window.removeEventListener('keydown', handleKeyPress);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [historyIndex, history]);
 
   useEffect(() => {
     generateImage();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [repoName, description, username, tagline, bgColor, accentColor, textColor,
       useGradient, titleFont, bodyFont, titleSize, descriptionSize, layout,
       pattern, patternOpacity, bgImage, logoImage, stats, showStats, icon, shadowIntensity, 
-      borderRadius, bgBlur, glowEffect, textStroke, textAlign, overlayOpacity, secondaryText, badges, faviconUrl]);
+      borderRadius, bgBlur, glowEffect, textStroke, textAlign, overlayOpacity, secondaryText, badges, faviconUrl,
+      titleWeight, bodyWeight, letterSpacing, lineHeight, textTransform, gradientType, gradientAngle, 
+      secondaryAccentColor, brightness, contrast, saturation]);
 
   useEffect(() => {
     const saved = localStorage.getItem('savedGitHubDesigns');
@@ -116,9 +187,336 @@ const GitHubImageGenerator = () => {
       roboto: "Roboto, sans-serif",
       montserrat: "Montserrat, sans-serif",
       playfair: "Playfair Display, serif",
-      orbitron: "Orbitron, sans-serif"
+      orbitron: "Orbitron, sans-serif",
+      lato: "Lato, sans-serif",
+      opensans: "Open Sans, sans-serif",
+      raleway: "Raleway, sans-serif",
+      nunito: "Nunito, sans-serif",
+      ubuntu: "Ubuntu, sans-serif",
+      merriweather: "Merriweather, serif",
+      josefinsans: "Josefin Sans, sans-serif",
+      inconsolata: "Inconsolata, monospace",
+      firamono: "Fira Mono, monospace",
+      outfit: "Outfit, sans-serif",
+      spacegrotesk: "Space Grotesk, sans-serif",
+      manrope: "Manrope, sans-serif",
+      worksans: "Work Sans, sans-serif",
+      dmsans: "DM Sans, sans-serif",
+      plusjakarta: "Plus Jakarta Sans, sans-serif",
+      bevietnampro: "Be Vietnam Pro, sans-serif",
+      redhatdisplay: "Red Hat Display, sans-serif",
+      jetbrainsmono: "JetBrains Mono, monospace",
+      ibmplexmono: "IBM Plex Mono, monospace",
+      spacemono: "Space Mono, monospace",
+      arcadeclass: "Arcade Classic, monospace",
+      pressstart2p: "Press Start 2P, monospace",
+      vt323: "VT323, monospace"
     };
     return fonts[font];
+  };
+
+  const applyTextTransform = (text: string) => {
+    switch (textTransform) {
+      case "uppercase": return text.toUpperCase();
+      case "lowercase": return text.toLowerCase();
+      case "capitalize": return text.charAt(0).toUpperCase() + text.slice(1).toLowerCase();
+      default: return text;
+    }
+  };
+
+  const adjustColor = (color: string, amount: number) => {
+    const num = parseInt(color.replace("#", ""), 16);
+    const r = Math.max(0, Math.min(255, (num >> 16) + amount));
+    const g = Math.max(0, Math.min(255, ((num >> 8) & 0x00ff) + amount));
+    const b = Math.max(0, Math.min(255, (num & 0x0000ff) + amount));
+    return `#${((r << 16) | (g << 8) | b).toString(16).padStart(6, "0")}`;
+  };
+
+  const drawHexagon = (ctx: CanvasRenderingContext2D, x: number, y: number, size: number) => {
+    ctx.beginPath();
+    for (let i = 0; i < 6; i++) {
+      const angle = (Math.PI / 3) * i;
+      const hx = x + size * Math.cos(angle);
+      const hy = y + size * Math.sin(angle);
+      if (i === 0) ctx.moveTo(hx, hy);
+      else ctx.lineTo(hx, hy);
+    }
+    ctx.closePath();
+    ctx.stroke();
+  };
+
+  const drawStar = (ctx: CanvasRenderingContext2D, cx: number, cy: number, spikes: number, outerRadius: number, innerRadius: number) => {
+    let rot = Math.PI / 2 * 3;
+    let x = cx;
+    let y = cy;
+    const step = Math.PI / spikes;
+
+    ctx.beginPath();
+    ctx.moveTo(cx, cy - outerRadius);
+    for (let i = 0; i < spikes; i++) {
+      x = cx + Math.cos(rot) * outerRadius;
+      y = cy + Math.sin(rot) * outerRadius;
+      ctx.lineTo(x, y);
+      rot += step;
+
+      x = cx + Math.cos(rot) * innerRadius;
+      y = cy + Math.sin(rot) * innerRadius;
+      ctx.lineTo(x, y);
+      rot += step;
+    }
+    ctx.lineTo(cx, cy - outerRadius);
+    ctx.closePath();
+    ctx.fill();
+  };
+
+  const drawFork = (ctx: CanvasRenderingContext2D, x: number, y: number, size: number) => {
+    ctx.beginPath();
+    ctx.arc(x - size / 3, y - size / 2, size / 5, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(x + size / 3, y - size / 2, size / 5, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.moveTo(x, y - size / 4);
+    ctx.lineTo(x, y + size / 2);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(x, y + size / 2, size / 5, 0, Math.PI * 2);
+    ctx.fill();
+  };
+
+  const drawEye = (ctx: CanvasRenderingContext2D, x: number, y: number, size: number) => {
+    ctx.beginPath();
+    ctx.ellipse(x, y, size, size / 2, 0, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(x, y, size / 3, 0, Math.PI * 2);
+    ctx.fill();
+  };
+
+  const drawZap = (ctx: CanvasRenderingContext2D, x: number, y: number, size: number) => {
+    ctx.beginPath();
+    ctx.moveTo(x + size / 3, y - size / 2);
+    ctx.lineTo(x - size / 4, y);
+    ctx.lineTo(x + size / 6, y);
+    ctx.lineTo(x - size / 3, y + size / 2);
+    ctx.lineTo(x + size / 4, y + size / 8);
+    ctx.lineTo(x - size / 6, y + size / 8);
+    ctx.closePath();
+    ctx.fill();
+  };
+
+  const drawShield = (ctx: CanvasRenderingContext2D, x: number, y: number, size: number) => {
+    ctx.beginPath();
+    ctx.moveTo(x, y - size / 2);
+    ctx.lineTo(x + size / 2, y - size / 3);
+    ctx.lineTo(x + size / 2, y + size / 4);
+    ctx.quadraticCurveTo(x + size / 2, y + size / 2, x, y + size / 1.5);
+    ctx.quadraticCurveTo(x - size / 2, y + size / 2, x - size / 2, y + size / 4);
+    ctx.lineTo(x - size / 2, y - size / 3);
+    ctx.closePath();
+    ctx.fill();
+  };
+
+  const drawIcon = (ctx: CanvasRenderingContext2D, x: number, y: number, size: number) => {
+    if (icon === "none") return;
+
+    ctx.save();
+    ctx.fillStyle = accentColor;
+    ctx.strokeStyle = accentColor;
+    ctx.lineWidth = 3;
+
+    switch (icon) {
+      case "star":
+        drawStar(ctx, x, y, 5, size, size / 2);
+        break;
+      case "fork":
+        drawFork(ctx, x, y, size);
+        break;
+      case "eye":
+        drawEye(ctx, x, y, size);
+        break;
+      case "zap":
+        drawZap(ctx, x, y, size);
+        break;
+      case "shield":
+        drawShield(ctx, x, y, size);
+        break;
+    }
+    ctx.restore();
+  };
+
+  const drawStatsFallback = (ctx: CanvasRenderingContext2D, x: number, y: number, statItems: Array<{icon: string; value: string; label: string}>) => {
+    ctx.textAlign = "center";
+    ctx.font = `600 24px ${getFontFamily(bodyFont)}`;
+    const spacing = 150;
+    const startX = x - spacing;
+
+    statItems.forEach((item, i) => {
+      const itemX = startX + (i * spacing);
+
+      ctx.fillStyle = accentColor + "30";
+      ctx.fillRect(itemX - 60, y - 20, 120, 70);
+
+      ctx.fillStyle = textColor;
+      ctx.fillText(item.icon, itemX, y + 5);
+      ctx.font = `700 28px ${getFontFamily(bodyFont)}`;
+      ctx.fillText(item.value, itemX, y + 35);
+      ctx.font = `600 24px ${getFontFamily(bodyFont)}`;
+    });
+  };
+
+  const drawStats = async (ctx: CanvasRenderingContext2D, x: number, y: number) => {
+    if (!showStats) return;
+
+    const statItems = [
+      { icon: "⭐", value: stats.stars, label: "Stars" },
+      { icon: "🔱", value: stats.forks, label: "Forks" },
+      { icon: "👁", value: stats.watchers, label: "Watchers" }
+    ];
+
+    ctx.textAlign = "center";
+    ctx.font = `600 24px ${getFontFamily(bodyFont)}`;
+
+    const spacing = 150;
+    const startX = x - spacing;
+
+    // Load and draw favicon if URL is provided
+    if (faviconUrl) {
+      try {
+        const faviconImg = new Image();
+        faviconImg.crossOrigin = "anonymous";
+        await new Promise<void>((resolve, reject) => {
+          faviconImg.onload = () => resolve();
+          faviconImg.onerror = () => reject();
+          faviconImg.src = faviconUrl;
+        });
+        
+        statItems.forEach((item, i) => {
+          const itemX = startX + (i * spacing);
+
+          ctx.fillStyle = accentColor + "30";
+          ctx.fillRect(itemX - 60, y - 20, 120, 70);
+
+          // Draw favicon instead of emoji
+          ctx.drawImage(faviconImg, itemX - 15, y - 15, 30, 30);
+          
+          ctx.fillStyle = textColor;
+          ctx.font = `700 28px ${getFontFamily(bodyFont)}`;
+          ctx.fillText(item.value, itemX, y + 35);
+          ctx.font = `600 24px ${getFontFamily(bodyFont)}`;
+        });
+      } catch (error) {
+        // Fallback to emoji if favicon fails to load
+        drawStatsFallback(ctx, x, y, statItems);
+      }
+    } else {
+      drawStatsFallback(ctx, x, y, statItems);
+    }
+  };
+
+  const roundRect = (ctx: CanvasRenderingContext2D, x: number, y: number, width: number, height: number, radius: number) => {
+    ctx.beginPath();
+    ctx.moveTo(x + radius, y);
+    ctx.lineTo(x + width - radius, y);
+    ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
+    ctx.lineTo(x + width, y + height - radius);
+    ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
+    ctx.lineTo(x + radius, y + height);
+    ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
+    ctx.lineTo(x, y + radius);
+    ctx.quadraticCurveTo(x, y, x + radius, y);
+    ctx.closePath();
+  };
+
+  // Save current state to history whenever key properties change
+  useEffect(() => {
+    if (isRestoringHistory) {
+      setIsRestoringHistory(false);
+      return;
+    }
+
+    const currentState: DesignConfig = {
+      repoName, description, username, tagline, bgColor, accentColor, textColor,
+      useGradient, titleFont, bodyFont, titleSize, descriptionSize, layout,
+      pattern, patternOpacity, stats, icon, shadowIntensity, borderRadius,
+      bgBlur, glowEffect, textStroke, textAlign, overlayOpacity,
+      titleWeight, bodyWeight, letterSpacing, lineHeight, textTransform,
+      gradientType, gradientAngle, secondaryAccentColor, brightness, contrast, saturation
+    };
+
+    // Only add to history if something actually changed
+    if (historyIndex === -1 || JSON.stringify(currentState) !== JSON.stringify(history[historyIndex])) {
+      const newHistory = history.slice(0, historyIndex + 1);
+      newHistory.push(currentState);
+      // Keep only last 50 states
+      if (newHistory.length > 50) {
+        newHistory.shift();
+      } else {
+        setHistoryIndex(historyIndex + 1);
+      }
+      setHistory(newHistory);
+    }
+  }, [repoName, description, username, tagline, bgColor, accentColor, textColor,
+      useGradient, titleFont, bodyFont, titleSize, descriptionSize, layout,
+      pattern, patternOpacity, stats, icon, shadowIntensity, borderRadius,
+      bgBlur, glowEffect, textStroke, textAlign, overlayOpacity,
+      titleWeight, bodyWeight, letterSpacing, lineHeight, textTransform,
+      gradientType, gradientAngle, secondaryAccentColor, brightness, contrast, saturation]);
+
+  const undo = () => {
+    if (historyIndex > 0) {
+      const newIndex = historyIndex - 1;
+      setHistoryIndex(newIndex);
+      restoreState(history[newIndex]);
+    }
+  };
+
+  const redo = () => {
+    if (historyIndex < history.length - 1) {
+      const newIndex = historyIndex + 1;
+      setHistoryIndex(newIndex);
+      restoreState(history[newIndex]);
+    }
+  };
+
+  const restoreState = (state: DesignConfig) => {
+    setIsRestoringHistory(true);
+    setRepoName(state.repoName);
+    setDescription(state.description);
+    setUsername(state.username);
+    setTagline(state.tagline);
+    setBgColor(state.bgColor);
+    setAccentColor(state.accentColor);
+    setTextColor(state.textColor);
+    setUseGradient(state.useGradient);
+    setTitleFont(state.titleFont);
+    setBodyFont(state.bodyFont);
+    setTitleSize(state.titleSize);
+    setDescriptionSize(state.descriptionSize);
+    setLayout(state.layout);
+    setPattern(state.pattern);
+    setPatternOpacity(state.patternOpacity);
+    if (state.stats) setStats(state.stats);
+    setIcon(state.icon);
+    setShadowIntensity(state.shadowIntensity);
+    setBorderRadius(state.borderRadius);
+    setBgBlur(state.bgBlur);
+    setGlowEffect(state.glowEffect);
+    setTextStroke(state.textStroke);
+    setTextAlign(state.textAlign);
+    setOverlayOpacity(state.overlayOpacity);
+    if (state.titleWeight) setTitleWeight(state.titleWeight);
+    if (state.bodyWeight) setBodyWeight(state.bodyWeight);
+    if (state.letterSpacing !== undefined) setLetterSpacing(state.letterSpacing);
+    if (state.lineHeight) setLineHeight(state.lineHeight);
+    if (state.textTransform) setTextTransform(state.textTransform);
+    if (state.gradientType) setGradientType(state.gradientType);
+    if (state.gradientAngle !== undefined) setGradientAngle(state.gradientAngle);
+    if (state.secondaryAccentColor) setSecondaryAccentColor(state.secondaryAccentColor);
+    if (state.brightness !== undefined) setBrightness(state.brightness);
+    if (state.contrast !== undefined) setContrast(state.contrast);
+    if (state.saturation !== undefined) setSaturation(state.saturation);
   };
 
   const generateImage = async () => {
@@ -135,10 +533,14 @@ const GitHubImageGenerator = () => {
       const img = new Image();
       img.crossOrigin = "anonymous";
       img.onload = () => {
-        // Apply blur to background image if enabled
-        if (bgBlur > 0) {
-          ctx.filter = `blur(${bgBlur}px)`;
-        }
+        // Apply filters to background image if enabled
+        const filters = [];
+        if (bgBlur > 0) filters.push(`blur(${bgBlur}px)`);
+        if (brightness !== 100) filters.push(`brightness(${brightness}%)`);
+        if (contrast !== 100) filters.push(`contrast(${contrast}%)`);
+        if (saturation !== 100) filters.push(`saturate(${saturation}%)`);
+        
+        ctx.filter = filters.length > 0 ? filters.join(' ') : 'none';
         ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
         ctx.filter = "none";
         
@@ -150,9 +552,30 @@ const GitHubImageGenerator = () => {
       img.src = bgImage;
     } else {
       if (useGradient) {
-        const gradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
-        gradient.addColorStop(0, bgColor);
-        gradient.addColorStop(1, adjustColor(bgColor, -20));
+        let gradient;
+        if (gradientType === "linear") {
+          const angle = (gradientAngle * Math.PI) / 180;
+          const x1 = canvas.width / 2 - Math.cos(angle) * canvas.width / 2;
+          const y1 = canvas.height / 2 - Math.sin(angle) * canvas.height / 2;
+          const x2 = canvas.width / 2 + Math.cos(angle) * canvas.width / 2;
+          const y2 = canvas.height / 2 + Math.sin(angle) * canvas.height / 2;
+          gradient = ctx.createLinearGradient(x1, y1, x2, y2);
+          gradient.addColorStop(0, bgColor);
+          gradient.addColorStop(0.5, secondaryAccentColor + "40");
+          gradient.addColorStop(1, adjustColor(bgColor, -20));
+        } else if (gradientType === "radial") {
+          gradient = ctx.createRadialGradient(canvas.width / 2, canvas.height / 2, 0, canvas.width / 2, canvas.height / 2, canvas.width / 2);
+          gradient.addColorStop(0, bgColor);
+          gradient.addColorStop(0.7, secondaryAccentColor + "30");
+          gradient.addColorStop(1, adjustColor(bgColor, -30));
+        } else {
+          // conic gradient fallback to linear
+          gradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
+          gradient.addColorStop(0, bgColor);
+          gradient.addColorStop(0.33, accentColor + "40");
+          gradient.addColorStop(0.66, secondaryAccentColor + "40");
+          gradient.addColorStop(1, adjustColor(bgColor, -20));
+        }
         ctx.fillStyle = gradient;
       } else {
         ctx.fillStyle = bgColor;
@@ -270,7 +693,7 @@ const GitHubImageGenerator = () => {
           ctx.stroke();
         }
         break;
-      case "hexagons":
+      case "hexagons": {
         const hexSize = 40;
         for (let y = 0; y < height; y += hexSize * 1.5) {
           for (let x = 0; x < width; x += hexSize * Math.sqrt(3)) {
@@ -279,6 +702,7 @@ const GitHubImageGenerator = () => {
           }
         }
         break;
+      }
       case "triangles":
         for (let i = 0; i < 20; i++) {
           const x = Math.random() * width;
@@ -316,189 +740,6 @@ const GitHubImageGenerator = () => {
         break;
     }
     ctx.globalAlpha = 1;
-  };
-
-  const drawHexagon = (ctx: CanvasRenderingContext2D, x: number, y: number, size: number) => {
-    ctx.beginPath();
-    for (let i = 0; i < 6; i++) {
-      const angle = (Math.PI / 3) * i;
-      const hx = x + size * Math.cos(angle);
-      const hy = y + size * Math.sin(angle);
-      if (i === 0) ctx.moveTo(hx, hy);
-      else ctx.lineTo(hx, hy);
-    }
-    ctx.closePath();
-    ctx.stroke();
-  };
-
-  const drawIcon = (ctx: CanvasRenderingContext2D, x: number, y: number, size: number) => {
-    if (icon === "none") return;
-
-    ctx.save();
-    ctx.fillStyle = accentColor;
-    ctx.strokeStyle = accentColor;
-    ctx.lineWidth = 3;
-
-    switch (icon) {
-      case "star":
-        drawStar(ctx, x, y, 5, size, size / 2);
-        break;
-      case "fork":
-        drawFork(ctx, x, y, size);
-        break;
-      case "eye":
-        drawEye(ctx, x, y, size);
-        break;
-      case "zap":
-        drawZap(ctx, x, y, size);
-        break;
-      case "shield":
-        drawShield(ctx, x, y, size);
-        break;
-    }
-    ctx.restore();
-  };
-
-  const drawStar = (ctx: CanvasRenderingContext2D, cx: number, cy: number, spikes: number, outerRadius: number, innerRadius: number) => {
-    let rot = Math.PI / 2 * 3;
-    let x = cx;
-    let y = cy;
-    const step = Math.PI / spikes;
-
-    ctx.beginPath();
-    ctx.moveTo(cx, cy - outerRadius);
-    for (let i = 0; i < spikes; i++) {
-      x = cx + Math.cos(rot) * outerRadius;
-      y = cy + Math.sin(rot) * outerRadius;
-      ctx.lineTo(x, y);
-      rot += step;
-
-      x = cx + Math.cos(rot) * innerRadius;
-      y = cy + Math.sin(rot) * innerRadius;
-      ctx.lineTo(x, y);
-      rot += step;
-    }
-    ctx.lineTo(cx, cy - outerRadius);
-    ctx.closePath();
-    ctx.fill();
-  };
-
-  const drawFork = (ctx: CanvasRenderingContext2D, x: number, y: number, size: number) => {
-    ctx.beginPath();
-    ctx.arc(x - size / 3, y - size / 2, size / 5, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.beginPath();
-    ctx.arc(x + size / 3, y - size / 2, size / 5, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.beginPath();
-    ctx.moveTo(x, y - size / 4);
-    ctx.lineTo(x, y + size / 2);
-    ctx.stroke();
-    ctx.beginPath();
-    ctx.arc(x, y + size / 2, size / 5, 0, Math.PI * 2);
-    ctx.fill();
-  };
-
-  const drawEye = (ctx: CanvasRenderingContext2D, x: number, y: number, size: number) => {
-    ctx.beginPath();
-    ctx.ellipse(x, y, size, size / 2, 0, 0, Math.PI * 2);
-    ctx.stroke();
-    ctx.beginPath();
-    ctx.arc(x, y, size / 3, 0, Math.PI * 2);
-    ctx.fill();
-  };
-
-  const drawZap = (ctx: CanvasRenderingContext2D, x: number, y: number, size: number) => {
-    ctx.beginPath();
-    ctx.moveTo(x + size / 3, y - size / 2);
-    ctx.lineTo(x - size / 4, y);
-    ctx.lineTo(x + size / 6, y);
-    ctx.lineTo(x - size / 3, y + size / 2);
-    ctx.lineTo(x + size / 4, y + size / 8);
-    ctx.lineTo(x - size / 6, y + size / 8);
-    ctx.closePath();
-    ctx.fill();
-  };
-
-  const drawShield = (ctx: CanvasRenderingContext2D, x: number, y: number, size: number) => {
-    ctx.beginPath();
-    ctx.moveTo(x, y - size / 2);
-    ctx.lineTo(x + size / 2, y - size / 3);
-    ctx.lineTo(x + size / 2, y + size / 4);
-    ctx.quadraticCurveTo(x + size / 2, y + size / 2, x, y + size / 1.5);
-    ctx.quadraticCurveTo(x - size / 2, y + size / 2, x - size / 2, y + size / 4);
-    ctx.lineTo(x - size / 2, y - size / 3);
-    ctx.closePath();
-    ctx.fill();
-  };
-
-  const drawStats = async (ctx: CanvasRenderingContext2D, x: number, y: number) => {
-    if (!showStats) return;
-
-    const statItems = [
-      { icon: "⭐", value: stats.stars, label: "Stars" },
-      { icon: "🔱", value: stats.forks, label: "Forks" },
-      { icon: "👁", value: stats.watchers, label: "Watchers" }
-    ];
-
-    ctx.textAlign = "center";
-    ctx.font = `600 24px ${getFontFamily(bodyFont)}`;
-
-    const spacing = 150;
-    const startX = x - spacing;
-
-    // Load and draw favicon if URL is provided
-    if (faviconUrl) {
-      try {
-        const faviconImg = new Image();
-        faviconImg.crossOrigin = "anonymous";
-        await new Promise<void>((resolve, reject) => {
-          faviconImg.onload = () => resolve();
-          faviconImg.onerror = () => reject();
-          faviconImg.src = faviconUrl;
-        });
-        
-        statItems.forEach((item, i) => {
-          const itemX = startX + (i * spacing);
-
-          ctx.fillStyle = accentColor + "30";
-          ctx.fillRect(itemX - 60, y - 20, 120, 70);
-
-          // Draw favicon instead of emoji
-          ctx.drawImage(faviconImg, itemX - 15, y - 15, 30, 30);
-          
-          ctx.fillStyle = textColor;
-          ctx.font = `700 28px ${getFontFamily(bodyFont)}`;
-          ctx.fillText(item.value, itemX, y + 35);
-          ctx.font = `600 24px ${getFontFamily(bodyFont)}`;
-        });
-      } catch (error) {
-        // Fallback to emoji if favicon fails to load
-        drawStatsFallback(ctx, x, y, statItems);
-      }
-    } else {
-      drawStatsFallback(ctx, x, y, statItems);
-    }
-  };
-
-  const drawStatsFallback = (ctx: CanvasRenderingContext2D, x: number, y: number, statItems: Array<{icon: string; value: string; label: string}>) => {
-    ctx.textAlign = "center";
-    ctx.font = `600 24px ${getFontFamily(bodyFont)}`;
-    const spacing = 150;
-    const startX = x - spacing;
-
-    statItems.forEach((item, i) => {
-      const itemX = startX + (i * spacing);
-
-      ctx.fillStyle = accentColor + "30";
-      ctx.fillRect(itemX - 60, y - 20, 120, 70);
-
-      ctx.fillStyle = textColor;
-      ctx.fillText(item.icon, itemX, y + 5);
-      ctx.font = `700 28px ${getFontFamily(bodyFont)}`;
-      ctx.fillText(item.value, itemX, y + 35);
-      ctx.font = `600 24px ${getFontFamily(bodyFont)}`;
-    });
   };
 
   const drawGradientLayout = (ctx: CanvasRenderingContext2D) => {
@@ -580,20 +821,6 @@ const GitHubImageGenerator = () => {
     }
   };
 
-  const roundRect = (ctx: CanvasRenderingContext2D, x: number, y: number, width: number, height: number, radius: number) => {
-    ctx.beginPath();
-    ctx.moveTo(x + radius, y);
-    ctx.lineTo(x + width - radius, y);
-    ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
-    ctx.lineTo(x + width, y + height - radius);
-    ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
-    ctx.lineTo(x + radius, y + height);
-    ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
-    ctx.lineTo(x, y + radius);
-    ctx.quadraticCurveTo(x, y, x + radius, y);
-    ctx.closePath();
-  };
-
   const drawModernLayout = (ctx: CanvasRenderingContext2D) => {
     const centerX = 640;
     const centerY = 320;
@@ -607,12 +834,17 @@ const GitHubImageGenerator = () => {
     }
 
     ctx.fillStyle = textColor;
-    ctx.font = `bold ${titleSize}px ${getFontFamily(titleFont)}`;
+    ctx.font = `${titleWeight} ${titleSize}px ${getFontFamily(titleFont)}`;
     ctx.textAlign = "center";
-    ctx.fillText(repoName, centerX, centerY);
+    if (letterSpacing !== 0) {
+      ctx.letterSpacing = `${letterSpacing}px`;
+    }
+    const transformedTitle = applyTextTransform(repoName);
+    ctx.fillText(transformedTitle, centerX, centerY);
+    ctx.letterSpacing = "0px";
 
     ctx.fillStyle = adjustColor(textColor, -60);
-    ctx.font = `${descriptionSize}px ${getFontFamily(bodyFont)}`;
+    ctx.font = `${bodyWeight} ${descriptionSize}px ${getFontFamily(bodyFont)}`;
     ctx.fillText(description, centerX, centerY + 60);
 
     ctx.fillStyle = accentColor;
@@ -1125,14 +1357,6 @@ const GitHubImageGenerator = () => {
     }
   };
 
-  const adjustColor = (color: string, amount: number) => {
-    const num = parseInt(color.replace("#", ""), 16);
-    const r = Math.max(0, Math.min(255, (num >> 16) + amount));
-    const g = Math.max(0, Math.min(255, ((num >> 8) & 0x00ff) + amount));
-    const b = Math.max(0, Math.min(255, (num & 0x0000ff) + amount));
-    return `#${((r << 16) | (g << 8) | b).toString(16).padStart(6, "0")}`;
-  };
-
   const downloadImage = () => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -1182,6 +1406,32 @@ const GitHubImageGenerator = () => {
     toast.success("Colors randomized!");
   };
 
+  const applyColorScheme = (scheme: string) => {
+    const schemes: Record<string, { bg: string; accent: string; secondary: string; text: string }> = {
+      ocean: { bg: "#0a2342", accent: "#2ca58d", secondary: "#84bcda", text: "#f1f1f1" },
+      sunset: { bg: "#1a1423", accent: "#f77f00", secondary: "#fcbf49", text: "#eae2b7" },
+      forest: { bg: "#0d1b2a", accent: "#2d6a4f", secondary: "#52b788", text: "#d8f3dc" },
+      monochrome: { bg: "#1a1a1a", accent: "#ffffff", secondary: "#cccccc", text: "#f5f5f5" },
+      cyberpunk: { bg: "#0a0e27", accent: "#ff006e", secondary: "#00f5ff", text: "#ffffff" },
+      vintage: { bg: "#2d2424", accent: "#d4a373", secondary: "#8b6f47", text: "#f5e6d3" },
+      midnight: { bg: "#0f0e17", accent: "#ff8906", secondary: "#f25f4c", text: "#fffffe" },
+      nature: { bg: "#132a13", accent: "#90a955", secondary: "#ecf39e", text: "#f0f7ee" },
+      pastel: { bg: "#fef6f0", accent: "#ff6b9d", secondary: "#c9ada7", text: "#22223b" },
+      corporate: { bg: "#14213d", accent: "#fca311", secondary: "#e5e5e5", text: "#ffffff" },
+      neon: { bg: "#000000", accent: "#00ff41", secondary: "#ff00ff", text: "#ffffff" },
+      royal: { bg: "#1a0b2e", accent: "#7b2cbf", secondary: "#c77dff", text: "#e0aaff" }
+    };
+    
+    const selected = schemes[scheme];
+    if (selected) {
+      setBgColor(selected.bg);
+      setAccentColor(selected.accent);
+      setSecondaryAccentColor(selected.secondary);
+      setTextColor(selected.text);
+      toast.success(`${scheme.charAt(0).toUpperCase() + scheme.slice(1)} color scheme applied!`);
+    }
+  };
+
   const applyTemplate = (template: LayoutTemplate) => {
     setLayout(template);
     const templates: Record<LayoutTemplate, { pattern: PatternType; titleFont: FontFamily; bodyFont: FontFamily }> = {
@@ -1214,7 +1464,9 @@ const GitHubImageGenerator = () => {
         repoName, description, username, tagline, bgColor, accentColor, textColor,
         useGradient, titleFont, bodyFont, titleSize, descriptionSize, layout,
         pattern, patternOpacity, stats, icon, shadowIntensity, borderRadius,
-        bgBlur, glowEffect, textStroke, textAlign, overlayOpacity
+        bgBlur, glowEffect, textStroke, textAlign, overlayOpacity,
+        titleWeight, bodyWeight, letterSpacing, lineHeight, textTransform,
+        gradientType, gradientAngle, secondaryAccentColor, brightness, contrast, saturation
       }
     };
     const updated = [...savedDesigns, design];
@@ -1249,6 +1501,17 @@ const GitHubImageGenerator = () => {
     setTextStroke(c.textStroke || false);
     setTextAlign(c.textAlign || "center");
     setOverlayOpacity(c.overlayOpacity || 60);
+    if (c.titleWeight) setTitleWeight(c.titleWeight);
+    if (c.bodyWeight) setBodyWeight(c.bodyWeight);
+    if (c.letterSpacing !== undefined) setLetterSpacing(c.letterSpacing);
+    if (c.lineHeight) setLineHeight(c.lineHeight);
+    if (c.textTransform) setTextTransform(c.textTransform);
+    if (c.gradientType) setGradientType(c.gradientType);
+    if (c.gradientAngle !== undefined) setGradientAngle(c.gradientAngle);
+    if (c.secondaryAccentColor) setSecondaryAccentColor(c.secondaryAccentColor);
+    if (c.brightness !== undefined) setBrightness(c.brightness);
+    if (c.contrast !== undefined) setContrast(c.contrast);
+    if (c.saturation !== undefined) setSaturation(c.saturation);
     toast.success("Design loaded!");
   };
 
@@ -1343,12 +1606,41 @@ const GitHubImageGenerator = () => {
 
         <div className="grid lg:grid-cols-2 gap-12 items-start">
           <Card className="p-8 bg-card border-border hover-lift">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex gap-2">
+                <Button 
+                  onClick={undo} 
+                  disabled={historyIndex <= 0}
+                  variant="outline" 
+                  size="sm"
+                  title="Undo (Ctrl+Z)"
+                >
+                  <RefreshCw className="w-4 h-4 mr-1 rotate-180" />
+                  Undo
+                </Button>
+                <Button 
+                  onClick={redo} 
+                  disabled={historyIndex >= history.length - 1}
+                  variant="outline" 
+                  size="sm"
+                  title="Redo (Ctrl+Shift+Z)"
+                >
+                  <RefreshCw className="w-4 h-4 mr-1" />
+                  Redo
+                </Button>
+              </div>
+              <span className="text-xs text-muted-foreground">
+                {history.length > 0 && `${historyIndex + 1}/${history.length}`}
+              </span>
+            </div>
+            
             <Tabs defaultValue="content" className="w-full">
-              <TabsList className="grid w-full grid-cols-4 mb-6">
+              <TabsList className="grid w-full grid-cols-5 mb-6">
                 <TabsTrigger value="content">Content</TabsTrigger>
                 <TabsTrigger value="style">Style</TabsTrigger>
                 <TabsTrigger value="layout">Layout</TabsTrigger>
                 <TabsTrigger value="images">Images</TabsTrigger>
+                <TabsTrigger value="advanced">Advanced</TabsTrigger>
               </TabsList>
 
               <TabsContent value="content" className="space-y-4 max-h-[500px] overflow-y-auto pr-2">
@@ -1478,7 +1770,7 @@ const GitHubImageGenerator = () => {
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent className="max-h-[300px]">
                       <SelectItem value="poppins">Poppins</SelectItem>
                       <SelectItem value="inter">Inter</SelectItem>
                       <SelectItem value="sourcecodepro">Source Code Pro</SelectItem>
@@ -1486,6 +1778,29 @@ const GitHubImageGenerator = () => {
                       <SelectItem value="montserrat">Montserrat</SelectItem>
                       <SelectItem value="playfair">Playfair Display</SelectItem>
                       <SelectItem value="orbitron">Orbitron</SelectItem>
+                      <SelectItem value="lato">Lato</SelectItem>
+                      <SelectItem value="opensans">Open Sans</SelectItem>
+                      <SelectItem value="raleway">Raleway</SelectItem>
+                      <SelectItem value="nunito">Nunito</SelectItem>
+                      <SelectItem value="ubuntu">Ubuntu</SelectItem>
+                      <SelectItem value="merriweather">Merriweather</SelectItem>
+                      <SelectItem value="josefinsans">Josefin Sans</SelectItem>
+                      <SelectItem value="inconsolata">Inconsolata</SelectItem>
+                      <SelectItem value="firamono">Fira Mono</SelectItem>
+                      <SelectItem value="outfit">Outfit</SelectItem>
+                      <SelectItem value="spacegrotesk">Space Grotesk</SelectItem>
+                      <SelectItem value="manrope">Manrope</SelectItem>
+                      <SelectItem value="worksans">Work Sans</SelectItem>
+                      <SelectItem value="dmsans">DM Sans</SelectItem>
+                      <SelectItem value="plusjakarta">Plus Jakarta Sans</SelectItem>
+                      <SelectItem value="bevietnampro">Be Vietnam Pro</SelectItem>
+                      <SelectItem value="redhatdisplay">Red Hat Display</SelectItem>
+                      <SelectItem value="jetbrainsmono">JetBrains Mono</SelectItem>
+                      <SelectItem value="ibmplexmono">IBM Plex Mono</SelectItem>
+                      <SelectItem value="spacemono">Space Mono</SelectItem>
+                      <SelectItem value="arcadeclass">Arcade Classic</SelectItem>
+                      <SelectItem value="pressstart2p">Press Start 2P</SelectItem>
+                      <SelectItem value="vt323">VT323</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -1496,7 +1811,7 @@ const GitHubImageGenerator = () => {
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent className="max-h-[300px]">
                       <SelectItem value="inter">Inter</SelectItem>
                       <SelectItem value="poppins">Poppins</SelectItem>
                       <SelectItem value="sourcecodepro">Source Code Pro</SelectItem>
@@ -1504,6 +1819,29 @@ const GitHubImageGenerator = () => {
                       <SelectItem value="montserrat">Montserrat</SelectItem>
                       <SelectItem value="playfair">Playfair Display</SelectItem>
                       <SelectItem value="orbitron">Orbitron</SelectItem>
+                      <SelectItem value="lato">Lato</SelectItem>
+                      <SelectItem value="opensans">Open Sans</SelectItem>
+                      <SelectItem value="raleway">Raleway</SelectItem>
+                      <SelectItem value="nunito">Nunito</SelectItem>
+                      <SelectItem value="ubuntu">Ubuntu</SelectItem>
+                      <SelectItem value="merriweather">Merriweather</SelectItem>
+                      <SelectItem value="josefinsans">Josefin Sans</SelectItem>
+                      <SelectItem value="inconsolata">Inconsolata</SelectItem>
+                      <SelectItem value="firamono">Fira Mono</SelectItem>
+                      <SelectItem value="outfit">Outfit</SelectItem>
+                      <SelectItem value="spacegrotesk">Space Grotesk</SelectItem>
+                      <SelectItem value="manrope">Manrope</SelectItem>
+                      <SelectItem value="worksans">Work Sans</SelectItem>
+                      <SelectItem value="dmsans">DM Sans</SelectItem>
+                      <SelectItem value="plusjakarta">Plus Jakarta Sans</SelectItem>
+                      <SelectItem value="bevietnampro">Be Vietnam Pro</SelectItem>
+                      <SelectItem value="redhatdisplay">Red Hat Display</SelectItem>
+                      <SelectItem value="jetbrainsmono">JetBrains Mono</SelectItem>
+                      <SelectItem value="ibmplexmono">IBM Plex Mono</SelectItem>
+                      <SelectItem value="spacemono">Space Mono</SelectItem>
+                      <SelectItem value="arcadeclass">Arcade Classic</SelectItem>
+                      <SelectItem value="pressstart2p">Press Start 2P</SelectItem>
+                      <SelectItem value="vt323">VT323</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -1592,6 +1930,22 @@ const GitHubImageGenerator = () => {
                     <Sparkles className="w-4 h-4 mr-2" />
                     Randomize Colors
                   </Button>
+                </div>
+
+                <div className="space-y-2 pt-4 border-t border-border">
+                  <Label>Color Schemes</Label>
+                  <div className="grid grid-cols-2 gap-2">
+                    {["ocean", "sunset", "forest", "monochrome", "cyberpunk", "vintage", "midnight", "nature", "pastel", "corporate", "neon", "royal"].map((scheme) => (
+                      <Button
+                        key={scheme}
+                        onClick={() => applyColorScheme(scheme)}
+                        variant="outline"
+                        className="capitalize text-xs"
+                      >
+                        {scheme}
+                      </Button>
+                    ))}
+                  </div>
                 </div>
               </TabsContent>
 
@@ -1746,6 +2100,149 @@ const GitHubImageGenerator = () => {
                   <p className="text-sm text-muted-foreground">Quick tip: Upload a transparent PNG logo for best results</p>
                 </div>
               </TabsContent>
+
+              <TabsContent value="advanced" className="space-y-4 max-h-[500px] overflow-y-auto pr-2">
+                <div className="space-y-3">
+                  <h3 className="font-semibold text-sm flex items-center gap-2">
+                    <Palette className="w-4 h-4" />
+                    Typography Controls
+                  </h3>
+                  
+                  <div className="space-y-2">
+                    <Label>Title Font Weight</Label>
+                    <Select value={titleWeight} onValueChange={(v) => setTitleWeight(v as FontWeight)}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="300">Light (300)</SelectItem>
+                        <SelectItem value="400">Regular (400)</SelectItem>
+                        <SelectItem value="500">Medium (500)</SelectItem>
+                        <SelectItem value="600">Semi-Bold (600)</SelectItem>
+                        <SelectItem value="700">Bold (700)</SelectItem>
+                        <SelectItem value="800">Extra-Bold (800)</SelectItem>
+                        <SelectItem value="900">Black (900)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Body Font Weight</Label>
+                    <Select value={bodyWeight} onValueChange={(v) => setBodyWeight(v as FontWeight)}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="300">Light (300)</SelectItem>
+                        <SelectItem value="400">Regular (400)</SelectItem>
+                        <SelectItem value="500">Medium (500)</SelectItem>
+                        <SelectItem value="600">Semi-Bold (600)</SelectItem>
+                        <SelectItem value="700">Bold (700)</SelectItem>
+                        <SelectItem value="800">Extra-Bold (800)</SelectItem>
+                        <SelectItem value="900">Black (900)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Letter Spacing: {letterSpacing}px</Label>
+                    <Slider value={[letterSpacing]} onValueChange={(v) => setLetterSpacing(v[0])} min={-5} max={20} step={1} />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Line Height: {lineHeight.toFixed(1)}</Label>
+                    <Slider value={[lineHeight]} onValueChange={(v) => setLineHeight(v[0])} min={0.8} max={2.5} step={0.1} />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Text Transform</Label>
+                    <Select value={textTransform} onValueChange={(v) => setTextTransform(v as TextTransform)}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">None</SelectItem>
+                        <SelectItem value="uppercase">UPPERCASE</SelectItem>
+                        <SelectItem value="lowercase">lowercase</SelectItem>
+                        <SelectItem value="capitalize">Capitalize</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                <div className="space-y-3 pt-4 border-t border-border">
+                  <h3 className="font-semibold text-sm flex items-center gap-2">
+                    <Layers className="w-4 h-4" />
+                    Gradient Controls
+                  </h3>
+
+                  <div className="space-y-2">
+                    <Label>Gradient Type</Label>
+                    <Select value={gradientType} onValueChange={(v) => setGradientType(v as GradientType)}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="linear">Linear</SelectItem>
+                        <SelectItem value="radial">Radial</SelectItem>
+                        <SelectItem value="conic">Conic</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {gradientType === "linear" && (
+                    <div className="space-y-2">
+                      <Label>Gradient Angle: {gradientAngle}°</Label>
+                      <Slider value={[gradientAngle]} onValueChange={(v) => setGradientAngle(v[0])} min={0} max={360} step={15} />
+                    </div>
+                  )}
+
+                  <div className="space-y-2">
+                    <Label>Secondary Accent Color</Label>
+                    <Input
+                      type="color"
+                      value={secondaryAccentColor}
+                      onChange={(e) => setSecondaryAccentColor(e.target.value)}
+                      className="w-full h-10 cursor-pointer"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-3 pt-4 border-t border-border">
+                  <h3 className="font-semibold text-sm flex items-center gap-2">
+                    <ImageIcon className="w-4 h-4" />
+                    Image Filters
+                  </h3>
+
+                  <div className="space-y-2">
+                    <Label>Brightness: {brightness}%</Label>
+                    <Slider value={[brightness]} onValueChange={(v) => setBrightness(v[0])} min={0} max={200} step={10} />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Contrast: {contrast}%</Label>
+                    <Slider value={[contrast]} onValueChange={(v) => setContrast(v[0])} min={0} max={200} step={10} />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Saturation: {saturation}%</Label>
+                    <Slider value={[saturation]} onValueChange={(v) => setSaturation(v[0])} min={0} max={200} step={10} />
+                  </div>
+
+                  <Button 
+                    onClick={() => {
+                      setBrightness(100);
+                      setContrast(100);
+                      setSaturation(100);
+                    }}
+                    variant="outline"
+                    className="w-full"
+                  >
+                    <RefreshCw className="w-4 h-4 mr-2" />
+                    Reset Filters
+                  </Button>
+                </div>
+              </TabsContent>
             </Tabs>
 
             <div className="space-y-3 pt-6 mt-6 border-t border-border">
@@ -1816,6 +2313,32 @@ const GitHubImageGenerator = () => {
                   </div>
                 </div>
               )}
+
+              <div className="pt-3 border-t border-border">
+                <Label className="mb-2 block text-xs text-muted-foreground">Keyboard Shortcuts</Label>
+                <div className="text-xs space-y-1 text-muted-foreground">
+                  <div className="flex justify-between">
+                    <span>Undo</span>
+                    <kbd className="px-2 py-0.5 bg-muted rounded">Ctrl+Z</kbd>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Redo</span>
+                    <kbd className="px-2 py-0.5 bg-muted rounded">Ctrl+Shift+Z</kbd>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Save Design</span>
+                    <kbd className="px-2 py-0.5 bg-muted rounded">Ctrl+S</kbd>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Download</span>
+                    <kbd className="px-2 py-0.5 bg-muted rounded">Ctrl+D</kbd>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Copy Image</span>
+                    <kbd className="px-2 py-0.5 bg-muted rounded">Ctrl+C</kbd>
+                  </div>
+                </div>
+              </div>
             </div>
           </Card>
 
