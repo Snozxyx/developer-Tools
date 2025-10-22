@@ -7,13 +7,15 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Slider } from "@/components/ui/slider";
-import { Download, RefreshCw, Upload, Image as ImageIcon, Sparkles, Copy, Save, FolderOpen, Zap } from "lucide-react";
+import { Download, RefreshCw, Upload, Image as ImageIcon, Sparkles, Copy, Save, FolderOpen, Zap, Move, Palette, Layers } from "lucide-react";
 import { toast } from "sonner";
+import { Switch } from "@/components/ui/switch";
 
-type LayoutTemplate = "modern" | "minimal" | "bold" | "gaming" | "gradient" | "glassmorphism";
-type PatternType = "circles" | "grid" | "dots" | "waves" | "hexagons" | "triangles" | "none";
+type LayoutTemplate = "modern" | "minimal" | "bold" | "gaming" | "gradient" | "glassmorphism" | "neon" | "retro" | "tech" | "corporate" | "cyberpunk" | "elegant";
+type PatternType = "circles" | "grid" | "dots" | "waves" | "hexagons" | "triangles" | "stars" | "mesh" | "noise" | "none";
 type FontFamily = "poppins" | "inter" | "sourcecodepro" | "roboto" | "montserrat" | "playfair" | "orbitron";
 type IconType = "none" | "star" | "fork" | "eye" | "zap" | "shield";
+type TextAlign = "left" | "center" | "right";
 
 interface SavedDesign {
   id: string;
@@ -42,6 +44,11 @@ interface DesignConfig {
   icon: IconType;
   shadowIntensity: number;
   borderRadius: number;
+  bgBlur: number;
+  glowEffect: boolean;
+  textStroke: boolean;
+  textAlign: TextAlign;
+  overlayOpacity: number;
 }
 
 const GitHubImageGenerator = () => {
@@ -78,12 +85,24 @@ const GitHubImageGenerator = () => {
   const [savedDesigns, setSavedDesigns] = useState<SavedDesign[]>([]);
   const [animationSpeed] = useState(1000);
   const [isAnimating, setIsAnimating] = useState(false);
+  
+  // New advanced features
+  const [bgBlur, setBgBlur] = useState(0);
+  const [glowEffect, setGlowEffect] = useState(false);
+  const [textStroke, setTextStroke] = useState(false);
+  const [textAlign, setTextAlign] = useState<TextAlign>("center");
+  const [overlayOpacity, setOverlayOpacity] = useState(60);
+  const [secondaryText, setSecondaryText] = useState("Built with ❤️");
+  const [badges, setBadges] = useState<string[]>(["TypeScript", "React", "Node.js"]);
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
 
   useEffect(() => {
     generateImage();
   }, [repoName, description, username, tagline, bgColor, accentColor, textColor,
       useGradient, titleFont, bodyFont, titleSize, descriptionSize, layout,
-      pattern, patternOpacity, bgImage, logoImage, stats, showStats, icon, shadowIntensity, borderRadius]);
+      pattern, patternOpacity, bgImage, logoImage, stats, showStats, icon, shadowIntensity, 
+      borderRadius, bgBlur, glowEffect, textStroke, textAlign, overlayOpacity, secondaryText, badges]);
 
   useEffect(() => {
     const saved = localStorage.getItem('savedGitHubDesigns');
@@ -119,8 +138,15 @@ const GitHubImageGenerator = () => {
       const img = new Image();
       img.crossOrigin = "anonymous";
       img.onload = () => {
+        // Apply blur to background image if enabled
+        if (bgBlur > 0) {
+          ctx.filter = `blur(${bgBlur}px)`;
+        }
         ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-        ctx.fillStyle = "rgba(0, 0, 0, 0.6)";
+        ctx.filter = "none";
+        
+        // Apply overlay
+        ctx.fillStyle = `rgba(0, 0, 0, ${overlayOpacity / 100})`;
         ctx.fillRect(0, 0, canvas.width, canvas.height);
         continueDrawing();
       };
@@ -164,8 +190,26 @@ const GitHubImageGenerator = () => {
         case "gradient":
           drawGradientLayout(ctx);
           break;
-        case "glassmorphism":
+      case "glassmorphism":
           drawGlassmorphismLayout(ctx);
+          break;
+        case "neon":
+          drawNeonLayout(ctx);
+          break;
+        case "retro":
+          drawRetroLayout(ctx);
+          break;
+        case "tech":
+          drawTechLayout(ctx);
+          break;
+        case "corporate":
+          drawCorporateLayout(ctx);
+          break;
+        case "cyberpunk":
+          drawCyberpunkLayout(ctx);
+          break;
+        case "elegant":
+          drawElegantLayout(ctx);
           break;
       }
 
@@ -249,6 +293,28 @@ const GitHubImageGenerator = () => {
           ctx.lineTo(x - size / 2, y + size / 2);
           ctx.closePath();
           ctx.stroke();
+        }
+        break;
+      case "stars":
+        for (let i = 0; i < 15; i++) {
+          const x = Math.random() * width;
+          const y = Math.random() * height;
+          const size = 20 + Math.random() * 30;
+          drawStar(ctx, x, y, 5, size, size / 2);
+        }
+        break;
+      case "mesh":
+        ctx.lineWidth = 1;
+        for (let i = 0; i < 20; i++) {
+          ctx.beginPath();
+          ctx.moveTo(Math.random() * width, Math.random() * height);
+          ctx.lineTo(Math.random() * width, Math.random() * height);
+          ctx.stroke();
+        }
+        break;
+      case "noise":
+        for (let i = 0; i < 1000; i++) {
+          ctx.fillRect(Math.random() * width, Math.random() * height, 2, 2);
         }
         break;
     }
@@ -629,6 +695,399 @@ const GitHubImageGenerator = () => {
     ctx.fillText(`@${username}`, centerX, centerY + 105);
   };
 
+  const drawNeonLayout = (ctx: CanvasRenderingContext2D) => {
+    const centerX = 640;
+    const centerY = 320;
+
+    // Neon glow effect
+    if (glowEffect) {
+      ctx.shadowColor = accentColor;
+      ctx.shadowBlur = 40;
+    }
+
+    // Draw neon border
+    ctx.strokeStyle = accentColor;
+    ctx.lineWidth = 8;
+    roundRect(ctx, 100, 100, 1080, 440, 20);
+    ctx.stroke();
+
+    // Draw inner neon border
+    ctx.strokeStyle = textColor;
+    ctx.lineWidth = 2;
+    roundRect(ctx, 120, 120, 1040, 400, 15);
+    ctx.stroke();
+
+    ctx.shadowBlur = glowEffect ? 30 : 0;
+
+    // Title with neon effect
+    ctx.fillStyle = accentColor;
+    ctx.font = `900 ${titleSize}px ${getFontFamily(titleFont)}`;
+    ctx.textAlign = textAlign;
+    const titleX = textAlign === "center" ? centerX : textAlign === "left" ? 150 : 1130;
+    ctx.fillText(repoName.toUpperCase(), titleX, centerY - 50);
+
+    ctx.shadowColor = textColor;
+    ctx.shadowBlur = glowEffect ? 20 : 0;
+    ctx.fillStyle = textColor;
+    ctx.font = `${descriptionSize}px ${getFontFamily(bodyFont)}`;
+    ctx.fillText(description, titleX, centerY + 20);
+
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = accentColor;
+    ctx.font = `600 28px ${getFontFamily(bodyFont)}`;
+    ctx.fillText(`@${username}`, titleX, centerY + 70);
+
+    if (secondaryText) {
+      ctx.fillStyle = adjustColor(textColor, -40);
+      ctx.font = `22px ${getFontFamily(bodyFont)}`;
+      ctx.fillText(secondaryText, titleX, centerY + 110);
+    }
+
+    // Draw badges
+    if (badges.length > 0) {
+      const badgeY = centerY + 150;
+      const badgeSpacing = 120;
+      const startX = centerX - ((badges.length - 1) * badgeSpacing) / 2;
+      
+      badges.forEach((badge, i) => {
+        const x = startX + i * badgeSpacing;
+        ctx.fillStyle = accentColor + "30";
+        ctx.fillRect(x - 50, badgeY, 100, 35);
+        ctx.strokeStyle = accentColor;
+        ctx.lineWidth = 2;
+        ctx.strokeRect(x - 50, badgeY, 100, 35);
+        ctx.fillStyle = textColor;
+        ctx.textAlign = "center";
+        ctx.font = `16px ${getFontFamily(bodyFont)}`;
+        ctx.fillText(badge, x, badgeY + 23);
+      });
+    }
+  };
+
+  const drawRetroLayout = (ctx: CanvasRenderingContext2D) => {
+    const centerX = 640;
+    const centerY = 320;
+
+    // Retro stripes background
+    for (let i = 0; i < 10; i++) {
+      ctx.fillStyle = `${accentColor}${(30 - i * 3).toString(16)}`;
+      ctx.fillRect(0, i * 64, 1280, 64);
+    }
+
+    // Retro text shadow effect
+    for (let i = 10; i > 0; i--) {
+      ctx.fillStyle = adjustColor(accentColor, -i * 10);
+      ctx.font = `900 ${titleSize}px ${getFontFamily(titleFont)}`;
+      ctx.textAlign = "center";
+      ctx.fillText(repoName.toUpperCase(), centerX + i * 2, centerY - i * 2);
+    }
+
+    ctx.fillStyle = textColor;
+    ctx.font = `900 ${titleSize}px ${getFontFamily(titleFont)}`;
+    ctx.textAlign = "center";
+    ctx.fillText(repoName.toUpperCase(), centerX, centerY);
+
+    // Retro description box
+    ctx.fillStyle = accentColor;
+    ctx.fillRect(centerX - 400, centerY + 40, 800, 100);
+    ctx.fillStyle = bgColor;
+    ctx.fillRect(centerX - 390, centerY + 50, 780, 80);
+
+    ctx.fillStyle = accentColor;
+    ctx.font = `bold ${descriptionSize}px ${getFontFamily(bodyFont)}`;
+    ctx.fillText(description, centerX, centerY + 100);
+
+    ctx.fillStyle = textColor;
+    ctx.font = `700 30px ${getFontFamily(bodyFont)}`;
+    ctx.fillText(`@${username}`, centerX, centerY + 170);
+  };
+
+  const drawTechLayout = (ctx: CanvasRenderingContext2D) => {
+    const leftMargin = 100;
+    const topMargin = 150;
+
+    // Tech grid background
+    ctx.strokeStyle = accentColor + "20";
+    ctx.lineWidth = 1;
+    for (let x = 0; x < 1280; x += 20) {
+      ctx.beginPath();
+      ctx.moveTo(x, 0);
+      ctx.lineTo(x, 640);
+      ctx.stroke();
+    }
+    for (let y = 0; y < 640; y += 20) {
+      ctx.beginPath();
+      ctx.moveTo(0, y);
+      ctx.lineTo(1280, y);
+      ctx.stroke();
+    }
+
+    // Tech accent panels
+    ctx.fillStyle = accentColor + "10";
+    ctx.fillRect(0, 0, 400, 640);
+    ctx.fillStyle = accentColor + "05";
+    ctx.fillRect(880, 0, 400, 640);
+
+    // Main content area
+    ctx.fillStyle = bgColor + "dd";
+    roundRect(ctx, leftMargin, topMargin, 1080, 340, 15);
+    ctx.fill();
+
+    ctx.strokeStyle = accentColor;
+    ctx.lineWidth = 3;
+    roundRect(ctx, leftMargin, topMargin, 1080, 340, 15);
+    ctx.stroke();
+
+    // Corner brackets (tech style)
+    ctx.strokeStyle = accentColor;
+    ctx.lineWidth = 4;
+    // Top left
+    ctx.beginPath();
+    ctx.moveTo(leftMargin + 30, topMargin);
+    ctx.lineTo(leftMargin, topMargin);
+    ctx.lineTo(leftMargin, topMargin + 30);
+    ctx.stroke();
+    // Top right
+    ctx.beginPath();
+    ctx.moveTo(1180 - 30, topMargin);
+    ctx.lineTo(1180, topMargin);
+    ctx.lineTo(1180, topMargin + 30);
+    ctx.stroke();
+    // Bottom left
+    ctx.beginPath();
+    ctx.moveTo(leftMargin, topMargin + 340 - 30);
+    ctx.lineTo(leftMargin, topMargin + 340);
+    ctx.lineTo(leftMargin + 30, topMargin + 340);
+    ctx.stroke();
+    // Bottom right
+    ctx.beginPath();
+    ctx.moveTo(1180, topMargin + 340 - 30);
+    ctx.lineTo(1180, topMargin + 340);
+    ctx.lineTo(1180 - 30, topMargin + 340);
+    ctx.stroke();
+
+    ctx.textAlign = "left";
+    ctx.fillStyle = accentColor;
+    ctx.font = `900 ${titleSize}px ${getFontFamily(titleFont)}`;
+    ctx.fillText(repoName, leftMargin + 50, topMargin + 120);
+
+    if (textStroke) {
+      ctx.strokeStyle = accentColor;
+      ctx.lineWidth = 2;
+      ctx.strokeText(repoName, leftMargin + 50, topMargin + 120);
+    }
+
+    ctx.fillStyle = textColor;
+    ctx.font = `${descriptionSize}px ${getFontFamily(bodyFont)}`;
+    ctx.fillText(description, leftMargin + 50, topMargin + 180);
+
+    ctx.fillStyle = accentColor;
+    ctx.font = `600 26px ${getFontFamily(bodyFont)}`;
+    ctx.fillText(`@${username}`, leftMargin + 50, topMargin + 240);
+
+    // Tech indicator line
+    ctx.strokeStyle = accentColor;
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.moveTo(leftMargin + 50, topMargin + 260);
+    ctx.lineTo(leftMargin + 300, topMargin + 260);
+    ctx.stroke();
+  };
+
+  const drawCorporateLayout = (ctx: CanvasRenderingContext2D) => {
+    const leftMargin = 120;
+    const topMargin = 200;
+
+    // Clean background with subtle accent
+    ctx.fillStyle = accentColor + "08";
+    ctx.fillRect(0, 0, 640, 640);
+
+    // Main title
+    ctx.textAlign = "left";
+    ctx.fillStyle = textColor;
+    ctx.font = `700 ${titleSize}px ${getFontFamily(titleFont)}`;
+    ctx.fillText(repoName, leftMargin, topMargin);
+
+    // Accent line
+    ctx.fillStyle = accentColor;
+    ctx.fillRect(leftMargin, topMargin + 20, 400, 6);
+
+    // Description
+    ctx.fillStyle = adjustColor(textColor, -50);
+    ctx.font = `${descriptionSize}px ${getFontFamily(bodyFont)}`;
+    ctx.fillText(description, leftMargin, topMargin + 90);
+
+    // Username in accent color
+    ctx.fillStyle = accentColor;
+    ctx.font = `600 28px ${getFontFamily(bodyFont)}`;
+    ctx.fillText(`@${username}`, leftMargin, topMargin + 150);
+
+    // Professional badge area
+    if (badges.length > 0) {
+      let offsetX = leftMargin;
+      badges.forEach((badge) => {
+        ctx.fillStyle = accentColor + "15";
+        const width = ctx.measureText(badge).width;
+        ctx.fillRect(offsetX, topMargin + 180, width + 30, 40);
+        ctx.fillStyle = textColor;
+        ctx.font = `500 18px ${getFontFamily(bodyFont)}`;
+        ctx.fillText(badge, offsetX + 15, topMargin + 205);
+        offsetX += width + 45;
+      });
+    }
+  };
+
+  const drawCyberpunkLayout = (ctx: CanvasRenderingContext2D) => {
+    const centerX = 640;
+    const centerY = 320;
+
+    // Cyberpunk scan lines
+    for (let y = 0; y < 640; y += 4) {
+      ctx.fillStyle = y % 8 === 0 ? "rgba(0, 0, 0, 0.3)" : "transparent";
+      ctx.fillRect(0, y, 1280, 2);
+    }
+
+    // Glitch bars
+    ctx.fillStyle = accentColor + "20";
+    ctx.fillRect(0, centerY - 150, 1280, 8);
+    ctx.fillRect(0, centerY + 150, 1280, 8);
+
+    // Cyberpunk corner elements
+    ctx.strokeStyle = accentColor;
+    ctx.lineWidth = 6;
+    ctx.beginPath();
+    ctx.moveTo(50, 50);
+    ctx.lineTo(150, 50);
+    ctx.lineTo(150, 150);
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.moveTo(1230, 50);
+    ctx.lineTo(1130, 50);
+    ctx.lineTo(1130, 150);
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.moveTo(50, 590);
+    ctx.lineTo(150, 590);
+    ctx.lineTo(150, 490);
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.moveTo(1230, 590);
+    ctx.lineTo(1130, 590);
+    ctx.lineTo(1130, 490);
+    ctx.stroke();
+
+    // Glitch effect on title
+    if (glowEffect) {
+      ctx.shadowColor = accentColor;
+      ctx.shadowBlur = 50;
+    }
+
+    // Main title with cyberpunk style
+    ctx.fillStyle = accentColor;
+    ctx.font = `900 ${titleSize + 10}px ${getFontFamily(titleFont)}`;
+    ctx.textAlign = "center";
+    ctx.fillText(repoName.toUpperCase(), centerX + 2, centerY - 40);
+
+    ctx.fillStyle = textColor;
+    ctx.fillText(repoName.toUpperCase(), centerX, centerY - 42);
+
+    ctx.shadowBlur = 0;
+
+    // Description with glitch offset
+    ctx.fillStyle = accentColor + "80";
+    ctx.font = `bold ${descriptionSize}px ${getFontFamily(bodyFont)}`;
+    ctx.fillText(description, centerX + 1, centerY + 30);
+
+    ctx.fillStyle = textColor;
+    ctx.fillText(description, centerX, centerY + 28);
+
+    // Username in highlighted box
+    ctx.fillStyle = accentColor;
+    ctx.fillRect(centerX - 150, centerY + 60, 300, 50);
+    ctx.fillStyle = bgColor;
+    ctx.font = `bold 30px ${getFontFamily(bodyFont)}`;
+    ctx.fillText(`@${username}`, centerX, centerY + 95);
+
+    // Cyberpunk indicators
+    ctx.fillStyle = accentColor;
+    ctx.beginPath();
+    ctx.arc(80, 80, 10, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(1200, 80, 10, 0, Math.PI * 2);
+    ctx.fill();
+  };
+
+  const drawElegantLayout = (ctx: CanvasRenderingContext2D) => {
+    const centerX = 640;
+    const centerY = 320;
+
+    // Elegant gradient overlay
+    const gradient = ctx.createRadialGradient(centerX, centerY, 0, centerX, centerY, 600);
+    gradient.addColorStop(0, "transparent");
+    gradient.addColorStop(0.7, accentColor + "10");
+    gradient.addColorStop(1, accentColor + "30");
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, 0, 1280, 640);
+
+    // Elegant decorative elements
+    ctx.strokeStyle = accentColor + "40";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(centerX, centerY - 180, 60, 0, Math.PI * 2);
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.arc(centerX, centerY - 180, 50, 0, Math.PI * 2);
+    ctx.stroke();
+
+    // Elegant title
+    ctx.textAlign = "center";
+    ctx.fillStyle = textColor;
+    ctx.font = `${titleSize}px ${getFontFamily(titleFont)}`;
+    ctx.fillText(repoName, centerX, centerY - 20);
+
+    // Elegant divider
+    ctx.strokeStyle = accentColor;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(centerX - 100, centerY + 15);
+    ctx.lineTo(centerX - 30, centerY + 15);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(centerX, centerY + 15, 5, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.moveTo(centerX + 30, centerY + 15);
+    ctx.lineTo(centerX + 100, centerY + 15);
+    ctx.stroke();
+
+    // Description
+    ctx.fillStyle = adjustColor(textColor, -40);
+    ctx.font = `italic ${descriptionSize}px ${getFontFamily(bodyFont)}`;
+    ctx.fillText(description, centerX, centerY + 70);
+
+    // Username with elegant styling
+    ctx.fillStyle = accentColor;
+    ctx.font = `600 26px ${getFontFamily(bodyFont)}`;
+    ctx.fillText(`@${username}`, centerX, centerY + 120);
+
+    // Decorative corner flourishes
+    ctx.strokeStyle = accentColor + "60";
+    ctx.lineWidth = 3;
+    for (let i = 0; i < 4; i++) {
+      const angle = (Math.PI / 2) * i;
+      const x = centerX + Math.cos(angle) * 400;
+      const y = centerY + Math.sin(angle) * 250;
+      ctx.beginPath();
+      ctx.arc(x, y, 20, angle - Math.PI / 4, angle + Math.PI / 4);
+      ctx.stroke();
+    }
+  };
+
   const adjustColor = (color: string, amount: number) => {
     const num = parseInt(color.replace("#", ""), 16);
     const r = Math.max(0, Math.min(255, (num >> 16) + amount));
@@ -688,13 +1147,19 @@ const GitHubImageGenerator = () => {
 
   const applyTemplate = (template: LayoutTemplate) => {
     setLayout(template);
-    const templates = {
+    const templates: Record<LayoutTemplate, { pattern: PatternType; titleFont: FontFamily; bodyFont: FontFamily }> = {
       modern: { pattern: "circles" as PatternType, titleFont: "poppins" as FontFamily, bodyFont: "inter" as FontFamily },
       minimal: { pattern: "none" as PatternType, titleFont: "inter" as FontFamily, bodyFont: "sourcecodepro" as FontFamily },
       bold: { pattern: "grid" as PatternType, titleFont: "montserrat" as FontFamily, bodyFont: "roboto" as FontFamily },
       gaming: { pattern: "dots" as PatternType, titleFont: "poppins" as FontFamily, bodyFont: "sourcecodepro" as FontFamily },
       gradient: { pattern: "waves" as PatternType, titleFont: "playfair" as FontFamily, bodyFont: "inter" as FontFamily },
-      glassmorphism: { pattern: "hexagons" as PatternType, titleFont: "montserrat" as FontFamily, bodyFont: "poppins" as FontFamily }
+      glassmorphism: { pattern: "hexagons" as PatternType, titleFont: "montserrat" as FontFamily, bodyFont: "poppins" as FontFamily },
+      neon: { pattern: "grid" as PatternType, titleFont: "orbitron" as FontFamily, bodyFont: "sourcecodepro" as FontFamily },
+      retro: { pattern: "waves" as PatternType, titleFont: "poppins" as FontFamily, bodyFont: "roboto" as FontFamily },
+      tech: { pattern: "mesh" as PatternType, titleFont: "sourcecodepro" as FontFamily, bodyFont: "inter" as FontFamily },
+      corporate: { pattern: "none" as PatternType, titleFont: "montserrat" as FontFamily, bodyFont: "inter" as FontFamily },
+      cyberpunk: { pattern: "noise" as PatternType, titleFont: "orbitron" as FontFamily, bodyFont: "sourcecodepro" as FontFamily },
+      elegant: { pattern: "dots" as PatternType, titleFont: "playfair" as FontFamily, bodyFont: "poppins" as FontFamily }
     };
     const config = templates[template];
     setPattern(config.pattern);
@@ -711,7 +1176,8 @@ const GitHubImageGenerator = () => {
       config: {
         repoName, description, username, tagline, bgColor, accentColor, textColor,
         useGradient, titleFont, bodyFont, titleSize, descriptionSize, layout,
-        pattern, patternOpacity, stats, icon, shadowIntensity, borderRadius
+        pattern, patternOpacity, stats, icon, shadowIntensity, borderRadius,
+        bgBlur, glowEffect, textStroke, textAlign, overlayOpacity
       }
     };
     const updated = [...savedDesigns, design];
@@ -741,6 +1207,11 @@ const GitHubImageGenerator = () => {
     setIcon(c.icon);
     setShadowIntensity(c.shadowIntensity);
     setBorderRadius(c.borderRadius);
+    setBgBlur(c.bgBlur || 0);
+    setGlowEffect(c.glowEffect || false);
+    setTextStroke(c.textStroke || false);
+    setTextAlign(c.textAlign || "center");
+    setOverlayOpacity(c.overlayOpacity || 60);
     toast.success("Design loaded!");
   };
 
@@ -944,6 +1415,32 @@ const GitHubImageGenerator = () => {
                     </div>
                   )}
                 </div>
+
+                <div className="space-y-2 pt-4 border-t border-border">
+                  <Label htmlFor="secondary-text">Secondary Text (Optional)</Label>
+                  <Input
+                    id="secondary-text"
+                    value={secondaryText}
+                    onChange={(e) => setSecondaryText(e.target.value)}
+                    placeholder="Built with ❤️"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Tech Badges (comma separated)</Label>
+                  <Input
+                    value={badges.join(", ")}
+                    onChange={(e) => setBadges(e.target.value.split(",").map(s => s.trim()).filter(Boolean))}
+                    placeholder="TypeScript, React, Node.js"
+                  />
+                  <div className="flex flex-wrap gap-2 mt-2">
+                    {badges.map((badge, i) => (
+                      <span key={i} className="px-2 py-1 bg-accent/20 text-xs rounded">
+                        {badge}
+                      </span>
+                    ))}
+                  </div>
+                </div>
               </TabsContent>
 
               <TabsContent value="style" className="space-y-4 max-h-[500px] overflow-y-auto pr-2">
@@ -1037,6 +1534,31 @@ const GitHubImageGenerator = () => {
                   <Slider value={[borderRadius]} onValueChange={(v) => setBorderRadius(v[0])} min={0} max={50} step={5} />
                 </div>
 
+                <div className="space-y-2 pt-4 border-t border-border">
+                  <Label>Text Alignment</Label>
+                  <Select value={textAlign} onValueChange={(v) => setTextAlign(v as TextAlign)}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="left">Left</SelectItem>
+                      <SelectItem value="center">Center</SelectItem>
+                      <SelectItem value="right">Right</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-3 pt-2">
+                  <div className="flex items-center justify-between">
+                    <Label>Glow Effect</Label>
+                    <Switch checked={glowEffect} onCheckedChange={setGlowEffect} />
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <Label>Text Stroke</Label>
+                    <Switch checked={textStroke} onCheckedChange={setTextStroke} />
+                  </div>
+                </div>
+
                 <div className="flex gap-2">
                   <Button onClick={randomizeColors} variant="outline" className="flex-1">
                     <Sparkles className="w-4 h-4 mr-2" />
@@ -1052,8 +1574,8 @@ const GitHubImageGenerator = () => {
               <TabsContent value="layout" className="space-y-4 max-h-[500px] overflow-y-auto pr-2">
                 <div className="space-y-2">
                   <Label>Template</Label>
-                  <div className="grid grid-cols-2 gap-2">
-                    {(["modern", "minimal", "bold", "gaming", "gradient", "glassmorphism"] as LayoutTemplate[]).map((t) => (
+                  <div className="grid grid-cols-3 gap-2">
+                    {(["modern", "minimal", "bold", "gaming", "gradient", "glassmorphism", "neon", "retro", "tech", "corporate", "cyberpunk", "elegant"] as LayoutTemplate[]).map((t) => (
                       <Button
                         key={t}
                         onClick={() => applyTemplate(t)}
@@ -1080,6 +1602,9 @@ const GitHubImageGenerator = () => {
                       <SelectItem value="waves">Waves</SelectItem>
                       <SelectItem value="hexagons">Hexagons</SelectItem>
                       <SelectItem value="triangles">Triangles</SelectItem>
+                      <SelectItem value="stars">Stars</SelectItem>
+                      <SelectItem value="mesh">Mesh</SelectItem>
+                      <SelectItem value="noise">Noise</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
