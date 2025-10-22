@@ -13,7 +13,7 @@ import { Switch } from "@/components/ui/switch";
 
 type LayoutTemplate = "modern" | "minimal" | "bold" | "gaming" | "gradient" | "glassmorphism" | "neon" | "retro" | "tech" | "corporate" | "cyberpunk" | "elegant";
 type PatternType = "circles" | "grid" | "dots" | "waves" | "hexagons" | "triangles" | "stars" | "mesh" | "noise" | "none";
-type FontFamily = "poppins" | "inter" | "sourcecodepro" | "roboto" | "montserrat" | "playfair" | "orbitron" | "lato" | "opensans" | "raleway" | "nunito" | "ubuntu" | "merriweather" | "josefinsans" | "inconsolata" | "firamono";
+type FontFamily = "poppins" | "inter" | "sourcecodepro" | "roboto" | "montserrat" | "playfair" | "orbitron" | "lato" | "opensans" | "raleway" | "nunito" | "ubuntu" | "merriweather" | "josefinsans" | "inconsolata" | "firamono" | "outfit" | "spacegrotesk" | "manrope" | "worksans" | "dmsans" | "plusjakarta" | "bevietnampro" | "redhatdisplay" | "jetbrainsmono" | "ibmplexmono" | "spacemono" | "arcadeclass" | "pressstart2p" | "vt323";
 type IconType = "none" | "star" | "fork" | "eye" | "zap" | "shield";
 type TextAlign = "left" | "center" | "right";
 type FontWeight = "300" | "400" | "500" | "600" | "700" | "800" | "900";
@@ -196,7 +196,21 @@ const GitHubImageGenerator = () => {
       merriweather: "Merriweather, serif",
       josefinsans: "Josefin Sans, sans-serif",
       inconsolata: "Inconsolata, monospace",
-      firamono: "Fira Mono, monospace"
+      firamono: "Fira Mono, monospace",
+      outfit: "Outfit, sans-serif",
+      spacegrotesk: "Space Grotesk, sans-serif",
+      manrope: "Manrope, sans-serif",
+      worksans: "Work Sans, sans-serif",
+      dmsans: "DM Sans, sans-serif",
+      plusjakarta: "Plus Jakarta Sans, sans-serif",
+      bevietnampro: "Be Vietnam Pro, sans-serif",
+      redhatdisplay: "Red Hat Display, sans-serif",
+      jetbrainsmono: "JetBrains Mono, monospace",
+      ibmplexmono: "IBM Plex Mono, monospace",
+      spacemono: "Space Mono, monospace",
+      arcadeclass: "Arcade Classic, monospace",
+      pressstart2p: "Press Start 2P, monospace",
+      vt323: "VT323, monospace"
     };
     return fonts[font];
   };
@@ -1756,7 +1770,7 @@ const GitHubImageGenerator = () => {
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent className="max-h-[300px]">
                       <SelectItem value="poppins">Poppins</SelectItem>
                       <SelectItem value="inter">Inter</SelectItem>
                       <SelectItem value="sourcecodepro">Source Code Pro</SelectItem>
@@ -1773,6 +1787,20 @@ const GitHubImageGenerator = () => {
                       <SelectItem value="josefinsans">Josefin Sans</SelectItem>
                       <SelectItem value="inconsolata">Inconsolata</SelectItem>
                       <SelectItem value="firamono">Fira Mono</SelectItem>
+                      <SelectItem value="outfit">Outfit</SelectItem>
+                      <SelectItem value="spacegrotesk">Space Grotesk</SelectItem>
+                      <SelectItem value="manrope">Manrope</SelectItem>
+                      <SelectItem value="worksans">Work Sans</SelectItem>
+                      <SelectItem value="dmsans">DM Sans</SelectItem>
+                      <SelectItem value="plusjakarta">Plus Jakarta Sans</SelectItem>
+                      <SelectItem value="bevietnampro">Be Vietnam Pro</SelectItem>
+                      <SelectItem value="redhatdisplay">Red Hat Display</SelectItem>
+                      <SelectItem value="jetbrainsmono">JetBrains Mono</SelectItem>
+                      <SelectItem value="ibmplexmono">IBM Plex Mono</SelectItem>
+                      <SelectItem value="spacemono">Space Mono</SelectItem>
+                      <SelectItem value="arcadeclass">Arcade Classic</SelectItem>
+                      <SelectItem value="pressstart2p">Press Start 2P</SelectItem>
+                      <SelectItem value="vt323">VT323</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -1783,7 +1811,7 @@ const GitHubImageGenerator = () => {
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent className="max-h-[300px]">
                       <SelectItem value="inter">Inter</SelectItem>
                       <SelectItem value="poppins">Poppins</SelectItem>
                       <SelectItem value="sourcecodepro">Source Code Pro</SelectItem>
@@ -1800,6 +1828,20 @@ const GitHubImageGenerator = () => {
                       <SelectItem value="josefinsans">Josefin Sans</SelectItem>
                       <SelectItem value="inconsolata">Inconsolata</SelectItem>
                       <SelectItem value="firamono">Fira Mono</SelectItem>
+                      <SelectItem value="outfit">Outfit</SelectItem>
+                      <SelectItem value="spacegrotesk">Space Grotesk</SelectItem>
+                      <SelectItem value="manrope">Manrope</SelectItem>
+                      <SelectItem value="worksans">Work Sans</SelectItem>
+                      <SelectItem value="dmsans">DM Sans</SelectItem>
+                      <SelectItem value="plusjakarta">Plus Jakarta Sans</SelectItem>
+                      <SelectItem value="bevietnampro">Be Vietnam Pro</SelectItem>
+                      <SelectItem value="redhatdisplay">Red Hat Display</SelectItem>
+                      <SelectItem value="jetbrainsmono">JetBrains Mono</SelectItem>
+                      <SelectItem value="ibmplexmono">IBM Plex Mono</SelectItem>
+                      <SelectItem value="spacemono">Space Mono</SelectItem>
+                      <SelectItem value="arcadeclass">Arcade Classic</SelectItem>
+                      <SelectItem value="pressstart2p">Press Start 2P</SelectItem>
+                      <SelectItem value="vt323">VT323</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
