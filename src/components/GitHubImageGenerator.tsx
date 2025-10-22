@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -52,6 +52,17 @@ interface DesignConfig {
   textStroke: boolean;
   textAlign: TextAlign;
   overlayOpacity: number;
+  titleWeight?: FontWeight;
+  bodyWeight?: FontWeight;
+  letterSpacing?: number;
+  lineHeight?: number;
+  textTransform?: TextTransform;
+  gradientType?: GradientType;
+  gradientAngle?: number;
+  secondaryAccentColor?: string;
+  brightness?: number;
+  contrast?: number;
+  saturation?: number;
 }
 
 const GitHubImageGenerator = () => {
@@ -109,15 +120,57 @@ const GitHubImageGenerator = () => {
   const [brightness, setBrightness] = useState(100);
   const [contrast, setContrast] = useState(100);
   const [saturation, setSaturation] = useState(100);
+  
+  // Undo/Redo history
+  const [history, setHistory] = useState<DesignConfig[]>([]);
+  const [historyIndex, setHistoryIndex] = useState(-1);
+  const [isRestoringHistory, setIsRestoringHistory] = useState(false);
+
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handleKeyPress = (e: KeyboardEvent) => {
+      // Undo: Ctrl+Z (or Cmd+Z on Mac)
+      if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
+        e.preventDefault();
+        undo();
+      }
+      // Redo: Ctrl+Shift+Z or Ctrl+Y (or Cmd equivalents on Mac)
+      if (((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'z') || 
+          ((e.ctrlKey || e.metaKey) && e.key === 'y')) {
+        e.preventDefault();
+        redo();
+      }
+      // Save: Ctrl+S (or Cmd+S on Mac)
+      if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+        e.preventDefault();
+        saveDesign();
+      }
+      // Download: Ctrl+D (or Cmd+D on Mac)
+      if ((e.ctrlKey || e.metaKey) && e.key === 'd') {
+        e.preventDefault();
+        downloadImage();
+      }
+      // Copy: Ctrl+C (or Cmd+C on Mac) - only when not in an input
+      if ((e.ctrlKey || e.metaKey) && e.key === 'c' && !(e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement)) {
+        e.preventDefault();
+        copyImageToClipboard();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyPress);
+    return () => window.removeEventListener('keydown', handleKeyPress);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [historyIndex, history]);
 
   useEffect(() => {
     generateImage();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [repoName, description, username, tagline, bgColor, accentColor, textColor,
       useGradient, titleFont, bodyFont, titleSize, descriptionSize, layout,
       pattern, patternOpacity, bgImage, logoImage, stats, showStats, icon, shadowIntensity, 
       borderRadius, bgBlur, glowEffect, textStroke, textAlign, overlayOpacity, secondaryText, badges, faviconUrl,
       titleWeight, bodyWeight, letterSpacing, lineHeight, textTransform, gradientType, gradientAngle, 
-      secondaryAccentColor, brightness, contrast, saturation, generateImage]);
+      secondaryAccentColor, brightness, contrast, saturation]);
 
   useEffect(() => {
     const saved = localStorage.getItem('savedGitHubDesigns');
@@ -148,7 +201,311 @@ const GitHubImageGenerator = () => {
     return fonts[font];
   };
 
-  const generateImage = useCallback(async () => {
+  const applyTextTransform = (text: string) => {
+    switch (textTransform) {
+      case "uppercase": return text.toUpperCase();
+      case "lowercase": return text.toLowerCase();
+      case "capitalize": return text.charAt(0).toUpperCase() + text.slice(1).toLowerCase();
+      default: return text;
+    }
+  };
+
+  const adjustColor = (color: string, amount: number) => {
+    const num = parseInt(color.replace("#", ""), 16);
+    const r = Math.max(0, Math.min(255, (num >> 16) + amount));
+    const g = Math.max(0, Math.min(255, ((num >> 8) & 0x00ff) + amount));
+    const b = Math.max(0, Math.min(255, (num & 0x0000ff) + amount));
+    return `#${((r << 16) | (g << 8) | b).toString(16).padStart(6, "0")}`;
+  };
+
+  const drawHexagon = (ctx: CanvasRenderingContext2D, x: number, y: number, size: number) => {
+    ctx.beginPath();
+    for (let i = 0; i < 6; i++) {
+      const angle = (Math.PI / 3) * i;
+      const hx = x + size * Math.cos(angle);
+      const hy = y + size * Math.sin(angle);
+      if (i === 0) ctx.moveTo(hx, hy);
+      else ctx.lineTo(hx, hy);
+    }
+    ctx.closePath();
+    ctx.stroke();
+  };
+
+  const drawStar = (ctx: CanvasRenderingContext2D, cx: number, cy: number, spikes: number, outerRadius: number, innerRadius: number) => {
+    let rot = Math.PI / 2 * 3;
+    let x = cx;
+    let y = cy;
+    const step = Math.PI / spikes;
+
+    ctx.beginPath();
+    ctx.moveTo(cx, cy - outerRadius);
+    for (let i = 0; i < spikes; i++) {
+      x = cx + Math.cos(rot) * outerRadius;
+      y = cy + Math.sin(rot) * outerRadius;
+      ctx.lineTo(x, y);
+      rot += step;
+
+      x = cx + Math.cos(rot) * innerRadius;
+      y = cy + Math.sin(rot) * innerRadius;
+      ctx.lineTo(x, y);
+      rot += step;
+    }
+    ctx.lineTo(cx, cy - outerRadius);
+    ctx.closePath();
+    ctx.fill();
+  };
+
+  const drawFork = (ctx: CanvasRenderingContext2D, x: number, y: number, size: number) => {
+    ctx.beginPath();
+    ctx.arc(x - size / 3, y - size / 2, size / 5, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(x + size / 3, y - size / 2, size / 5, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.moveTo(x, y - size / 4);
+    ctx.lineTo(x, y + size / 2);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(x, y + size / 2, size / 5, 0, Math.PI * 2);
+    ctx.fill();
+  };
+
+  const drawEye = (ctx: CanvasRenderingContext2D, x: number, y: number, size: number) => {
+    ctx.beginPath();
+    ctx.ellipse(x, y, size, size / 2, 0, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(x, y, size / 3, 0, Math.PI * 2);
+    ctx.fill();
+  };
+
+  const drawZap = (ctx: CanvasRenderingContext2D, x: number, y: number, size: number) => {
+    ctx.beginPath();
+    ctx.moveTo(x + size / 3, y - size / 2);
+    ctx.lineTo(x - size / 4, y);
+    ctx.lineTo(x + size / 6, y);
+    ctx.lineTo(x - size / 3, y + size / 2);
+    ctx.lineTo(x + size / 4, y + size / 8);
+    ctx.lineTo(x - size / 6, y + size / 8);
+    ctx.closePath();
+    ctx.fill();
+  };
+
+  const drawShield = (ctx: CanvasRenderingContext2D, x: number, y: number, size: number) => {
+    ctx.beginPath();
+    ctx.moveTo(x, y - size / 2);
+    ctx.lineTo(x + size / 2, y - size / 3);
+    ctx.lineTo(x + size / 2, y + size / 4);
+    ctx.quadraticCurveTo(x + size / 2, y + size / 2, x, y + size / 1.5);
+    ctx.quadraticCurveTo(x - size / 2, y + size / 2, x - size / 2, y + size / 4);
+    ctx.lineTo(x - size / 2, y - size / 3);
+    ctx.closePath();
+    ctx.fill();
+  };
+
+  const drawIcon = (ctx: CanvasRenderingContext2D, x: number, y: number, size: number) => {
+    if (icon === "none") return;
+
+    ctx.save();
+    ctx.fillStyle = accentColor;
+    ctx.strokeStyle = accentColor;
+    ctx.lineWidth = 3;
+
+    switch (icon) {
+      case "star":
+        drawStar(ctx, x, y, 5, size, size / 2);
+        break;
+      case "fork":
+        drawFork(ctx, x, y, size);
+        break;
+      case "eye":
+        drawEye(ctx, x, y, size);
+        break;
+      case "zap":
+        drawZap(ctx, x, y, size);
+        break;
+      case "shield":
+        drawShield(ctx, x, y, size);
+        break;
+    }
+    ctx.restore();
+  };
+
+  const drawStatsFallback = (ctx: CanvasRenderingContext2D, x: number, y: number, statItems: Array<{icon: string; value: string; label: string}>) => {
+    ctx.textAlign = "center";
+    ctx.font = `600 24px ${getFontFamily(bodyFont)}`;
+    const spacing = 150;
+    const startX = x - spacing;
+
+    statItems.forEach((item, i) => {
+      const itemX = startX + (i * spacing);
+
+      ctx.fillStyle = accentColor + "30";
+      ctx.fillRect(itemX - 60, y - 20, 120, 70);
+
+      ctx.fillStyle = textColor;
+      ctx.fillText(item.icon, itemX, y + 5);
+      ctx.font = `700 28px ${getFontFamily(bodyFont)}`;
+      ctx.fillText(item.value, itemX, y + 35);
+      ctx.font = `600 24px ${getFontFamily(bodyFont)}`;
+    });
+  };
+
+  const drawStats = async (ctx: CanvasRenderingContext2D, x: number, y: number) => {
+    if (!showStats) return;
+
+    const statItems = [
+      { icon: "⭐", value: stats.stars, label: "Stars" },
+      { icon: "🔱", value: stats.forks, label: "Forks" },
+      { icon: "👁", value: stats.watchers, label: "Watchers" }
+    ];
+
+    ctx.textAlign = "center";
+    ctx.font = `600 24px ${getFontFamily(bodyFont)}`;
+
+    const spacing = 150;
+    const startX = x - spacing;
+
+    // Load and draw favicon if URL is provided
+    if (faviconUrl) {
+      try {
+        const faviconImg = new Image();
+        faviconImg.crossOrigin = "anonymous";
+        await new Promise<void>((resolve, reject) => {
+          faviconImg.onload = () => resolve();
+          faviconImg.onerror = () => reject();
+          faviconImg.src = faviconUrl;
+        });
+        
+        statItems.forEach((item, i) => {
+          const itemX = startX + (i * spacing);
+
+          ctx.fillStyle = accentColor + "30";
+          ctx.fillRect(itemX - 60, y - 20, 120, 70);
+
+          // Draw favicon instead of emoji
+          ctx.drawImage(faviconImg, itemX - 15, y - 15, 30, 30);
+          
+          ctx.fillStyle = textColor;
+          ctx.font = `700 28px ${getFontFamily(bodyFont)}`;
+          ctx.fillText(item.value, itemX, y + 35);
+          ctx.font = `600 24px ${getFontFamily(bodyFont)}`;
+        });
+      } catch (error) {
+        // Fallback to emoji if favicon fails to load
+        drawStatsFallback(ctx, x, y, statItems);
+      }
+    } else {
+      drawStatsFallback(ctx, x, y, statItems);
+    }
+  };
+
+  const roundRect = (ctx: CanvasRenderingContext2D, x: number, y: number, width: number, height: number, radius: number) => {
+    ctx.beginPath();
+    ctx.moveTo(x + radius, y);
+    ctx.lineTo(x + width - radius, y);
+    ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
+    ctx.lineTo(x + width, y + height - radius);
+    ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
+    ctx.lineTo(x + radius, y + height);
+    ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
+    ctx.lineTo(x, y + radius);
+    ctx.quadraticCurveTo(x, y, x + radius, y);
+    ctx.closePath();
+  };
+
+  // Save current state to history whenever key properties change
+  useEffect(() => {
+    if (isRestoringHistory) {
+      setIsRestoringHistory(false);
+      return;
+    }
+
+    const currentState: DesignConfig = {
+      repoName, description, username, tagline, bgColor, accentColor, textColor,
+      useGradient, titleFont, bodyFont, titleSize, descriptionSize, layout,
+      pattern, patternOpacity, stats, icon, shadowIntensity, borderRadius,
+      bgBlur, glowEffect, textStroke, textAlign, overlayOpacity,
+      titleWeight, bodyWeight, letterSpacing, lineHeight, textTransform,
+      gradientType, gradientAngle, secondaryAccentColor, brightness, contrast, saturation
+    };
+
+    // Only add to history if something actually changed
+    if (historyIndex === -1 || JSON.stringify(currentState) !== JSON.stringify(history[historyIndex])) {
+      const newHistory = history.slice(0, historyIndex + 1);
+      newHistory.push(currentState);
+      // Keep only last 50 states
+      if (newHistory.length > 50) {
+        newHistory.shift();
+      } else {
+        setHistoryIndex(historyIndex + 1);
+      }
+      setHistory(newHistory);
+    }
+  }, [repoName, description, username, tagline, bgColor, accentColor, textColor,
+      useGradient, titleFont, bodyFont, titleSize, descriptionSize, layout,
+      pattern, patternOpacity, stats, icon, shadowIntensity, borderRadius,
+      bgBlur, glowEffect, textStroke, textAlign, overlayOpacity,
+      titleWeight, bodyWeight, letterSpacing, lineHeight, textTransform,
+      gradientType, gradientAngle, secondaryAccentColor, brightness, contrast, saturation]);
+
+  const undo = () => {
+    if (historyIndex > 0) {
+      const newIndex = historyIndex - 1;
+      setHistoryIndex(newIndex);
+      restoreState(history[newIndex]);
+    }
+  };
+
+  const redo = () => {
+    if (historyIndex < history.length - 1) {
+      const newIndex = historyIndex + 1;
+      setHistoryIndex(newIndex);
+      restoreState(history[newIndex]);
+    }
+  };
+
+  const restoreState = (state: DesignConfig) => {
+    setIsRestoringHistory(true);
+    setRepoName(state.repoName);
+    setDescription(state.description);
+    setUsername(state.username);
+    setTagline(state.tagline);
+    setBgColor(state.bgColor);
+    setAccentColor(state.accentColor);
+    setTextColor(state.textColor);
+    setUseGradient(state.useGradient);
+    setTitleFont(state.titleFont);
+    setBodyFont(state.bodyFont);
+    setTitleSize(state.titleSize);
+    setDescriptionSize(state.descriptionSize);
+    setLayout(state.layout);
+    setPattern(state.pattern);
+    setPatternOpacity(state.patternOpacity);
+    if (state.stats) setStats(state.stats);
+    setIcon(state.icon);
+    setShadowIntensity(state.shadowIntensity);
+    setBorderRadius(state.borderRadius);
+    setBgBlur(state.bgBlur);
+    setGlowEffect(state.glowEffect);
+    setTextStroke(state.textStroke);
+    setTextAlign(state.textAlign);
+    setOverlayOpacity(state.overlayOpacity);
+    if (state.titleWeight) setTitleWeight(state.titleWeight);
+    if (state.bodyWeight) setBodyWeight(state.bodyWeight);
+    if (state.letterSpacing !== undefined) setLetterSpacing(state.letterSpacing);
+    if (state.lineHeight) setLineHeight(state.lineHeight);
+    if (state.textTransform) setTextTransform(state.textTransform);
+    if (state.gradientType) setGradientType(state.gradientType);
+    if (state.gradientAngle !== undefined) setGradientAngle(state.gradientAngle);
+    if (state.secondaryAccentColor) setSecondaryAccentColor(state.secondaryAccentColor);
+    if (state.brightness !== undefined) setBrightness(state.brightness);
+    if (state.contrast !== undefined) setContrast(state.contrast);
+    if (state.saturation !== undefined) setSaturation(state.saturation);
+  };
+
+  const generateImage = async () => {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
@@ -264,10 +621,7 @@ const GitHubImageGenerator = () => {
 
       ctx.shadowBlur = 0;
     }
-  }, [repoName, description, username, tagline, bgColor, accentColor, textColor,
-      useGradient, titleFont, bodyFont, titleSize, descriptionSize, layout,
-      pattern, patternOpacity, bgImage, logoImage, stats, showStats, icon, shadowIntensity, 
-      borderRadius, bgBlur, glowEffect, textStroke, textAlign, overlayOpacity, secondaryText, badges, faviconUrl]);
+  };
 
   const drawPattern = (ctx: CanvasRenderingContext2D, width: number, height: number) => {
     ctx.globalAlpha = patternOpacity / 100;
@@ -374,189 +728,6 @@ const GitHubImageGenerator = () => {
     ctx.globalAlpha = 1;
   };
 
-  const drawHexagon = (ctx: CanvasRenderingContext2D, x: number, y: number, size: number) => {
-    ctx.beginPath();
-    for (let i = 0; i < 6; i++) {
-      const angle = (Math.PI / 3) * i;
-      const hx = x + size * Math.cos(angle);
-      const hy = y + size * Math.sin(angle);
-      if (i === 0) ctx.moveTo(hx, hy);
-      else ctx.lineTo(hx, hy);
-    }
-    ctx.closePath();
-    ctx.stroke();
-  };
-
-  const drawIcon = (ctx: CanvasRenderingContext2D, x: number, y: number, size: number) => {
-    if (icon === "none") return;
-
-    ctx.save();
-    ctx.fillStyle = accentColor;
-    ctx.strokeStyle = accentColor;
-    ctx.lineWidth = 3;
-
-    switch (icon) {
-      case "star":
-        drawStar(ctx, x, y, 5, size, size / 2);
-        break;
-      case "fork":
-        drawFork(ctx, x, y, size);
-        break;
-      case "eye":
-        drawEye(ctx, x, y, size);
-        break;
-      case "zap":
-        drawZap(ctx, x, y, size);
-        break;
-      case "shield":
-        drawShield(ctx, x, y, size);
-        break;
-    }
-    ctx.restore();
-  };
-
-  const drawStar = (ctx: CanvasRenderingContext2D, cx: number, cy: number, spikes: number, outerRadius: number, innerRadius: number) => {
-    let rot = Math.PI / 2 * 3;
-    let x = cx;
-    let y = cy;
-    const step = Math.PI / spikes;
-
-    ctx.beginPath();
-    ctx.moveTo(cx, cy - outerRadius);
-    for (let i = 0; i < spikes; i++) {
-      x = cx + Math.cos(rot) * outerRadius;
-      y = cy + Math.sin(rot) * outerRadius;
-      ctx.lineTo(x, y);
-      rot += step;
-
-      x = cx + Math.cos(rot) * innerRadius;
-      y = cy + Math.sin(rot) * innerRadius;
-      ctx.lineTo(x, y);
-      rot += step;
-    }
-    ctx.lineTo(cx, cy - outerRadius);
-    ctx.closePath();
-    ctx.fill();
-  };
-
-  const drawFork = (ctx: CanvasRenderingContext2D, x: number, y: number, size: number) => {
-    ctx.beginPath();
-    ctx.arc(x - size / 3, y - size / 2, size / 5, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.beginPath();
-    ctx.arc(x + size / 3, y - size / 2, size / 5, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.beginPath();
-    ctx.moveTo(x, y - size / 4);
-    ctx.lineTo(x, y + size / 2);
-    ctx.stroke();
-    ctx.beginPath();
-    ctx.arc(x, y + size / 2, size / 5, 0, Math.PI * 2);
-    ctx.fill();
-  };
-
-  const drawEye = (ctx: CanvasRenderingContext2D, x: number, y: number, size: number) => {
-    ctx.beginPath();
-    ctx.ellipse(x, y, size, size / 2, 0, 0, Math.PI * 2);
-    ctx.stroke();
-    ctx.beginPath();
-    ctx.arc(x, y, size / 3, 0, Math.PI * 2);
-    ctx.fill();
-  };
-
-  const drawZap = (ctx: CanvasRenderingContext2D, x: number, y: number, size: number) => {
-    ctx.beginPath();
-    ctx.moveTo(x + size / 3, y - size / 2);
-    ctx.lineTo(x - size / 4, y);
-    ctx.lineTo(x + size / 6, y);
-    ctx.lineTo(x - size / 3, y + size / 2);
-    ctx.lineTo(x + size / 4, y + size / 8);
-    ctx.lineTo(x - size / 6, y + size / 8);
-    ctx.closePath();
-    ctx.fill();
-  };
-
-  const drawShield = (ctx: CanvasRenderingContext2D, x: number, y: number, size: number) => {
-    ctx.beginPath();
-    ctx.moveTo(x, y - size / 2);
-    ctx.lineTo(x + size / 2, y - size / 3);
-    ctx.lineTo(x + size / 2, y + size / 4);
-    ctx.quadraticCurveTo(x + size / 2, y + size / 2, x, y + size / 1.5);
-    ctx.quadraticCurveTo(x - size / 2, y + size / 2, x - size / 2, y + size / 4);
-    ctx.lineTo(x - size / 2, y - size / 3);
-    ctx.closePath();
-    ctx.fill();
-  };
-
-  const drawStats = async (ctx: CanvasRenderingContext2D, x: number, y: number) => {
-    if (!showStats) return;
-
-    const statItems = [
-      { icon: "⭐", value: stats.stars, label: "Stars" },
-      { icon: "🔱", value: stats.forks, label: "Forks" },
-      { icon: "👁", value: stats.watchers, label: "Watchers" }
-    ];
-
-    ctx.textAlign = "center";
-    ctx.font = `600 24px ${getFontFamily(bodyFont)}`;
-
-    const spacing = 150;
-    const startX = x - spacing;
-
-    // Load and draw favicon if URL is provided
-    if (faviconUrl) {
-      try {
-        const faviconImg = new Image();
-        faviconImg.crossOrigin = "anonymous";
-        await new Promise<void>((resolve, reject) => {
-          faviconImg.onload = () => resolve();
-          faviconImg.onerror = () => reject();
-          faviconImg.src = faviconUrl;
-        });
-        
-        statItems.forEach((item, i) => {
-          const itemX = startX + (i * spacing);
-
-          ctx.fillStyle = accentColor + "30";
-          ctx.fillRect(itemX - 60, y - 20, 120, 70);
-
-          // Draw favicon instead of emoji
-          ctx.drawImage(faviconImg, itemX - 15, y - 15, 30, 30);
-          
-          ctx.fillStyle = textColor;
-          ctx.font = `700 28px ${getFontFamily(bodyFont)}`;
-          ctx.fillText(item.value, itemX, y + 35);
-          ctx.font = `600 24px ${getFontFamily(bodyFont)}`;
-        });
-      } catch (error) {
-        // Fallback to emoji if favicon fails to load
-        drawStatsFallback(ctx, x, y, statItems);
-      }
-    } else {
-      drawStatsFallback(ctx, x, y, statItems);
-    }
-  };
-
-  const drawStatsFallback = (ctx: CanvasRenderingContext2D, x: number, y: number, statItems: Array<{icon: string; value: string; label: string}>) => {
-    ctx.textAlign = "center";
-    ctx.font = `600 24px ${getFontFamily(bodyFont)}`;
-    const spacing = 150;
-    const startX = x - spacing;
-
-    statItems.forEach((item, i) => {
-      const itemX = startX + (i * spacing);
-
-      ctx.fillStyle = accentColor + "30";
-      ctx.fillRect(itemX - 60, y - 20, 120, 70);
-
-      ctx.fillStyle = textColor;
-      ctx.fillText(item.icon, itemX, y + 5);
-      ctx.font = `700 28px ${getFontFamily(bodyFont)}`;
-      ctx.fillText(item.value, itemX, y + 35);
-      ctx.font = `600 24px ${getFontFamily(bodyFont)}`;
-    });
-  };
-
   const drawGradientLayout = (ctx: CanvasRenderingContext2D) => {
     const centerX = 640;
     const centerY = 320;
@@ -633,29 +804,6 @@ const GitHubImageGenerator = () => {
       ctx.fillStyle = adjustColor(textColor, -60);
       ctx.font = `20px ${getFontFamily(bodyFont)}`;
       ctx.fillText(tagline, centerX, centerY + 145);
-    }
-  };
-
-  const roundRect = (ctx: CanvasRenderingContext2D, x: number, y: number, width: number, height: number, radius: number) => {
-    ctx.beginPath();
-    ctx.moveTo(x + radius, y);
-    ctx.lineTo(x + width - radius, y);
-    ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
-    ctx.lineTo(x + width, y + height - radius);
-    ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
-    ctx.lineTo(x + radius, y + height);
-    ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
-    ctx.lineTo(x, y + radius);
-    ctx.quadraticCurveTo(x, y, x + radius, y);
-    ctx.closePath();
-  };
-
-  const applyTextTransform = (text: string) => {
-    switch (textTransform) {
-      case "uppercase": return text.toUpperCase();
-      case "lowercase": return text.toLowerCase();
-      case "capitalize": return text.charAt(0).toUpperCase() + text.slice(1).toLowerCase();
-      default: return text;
     }
   };
 
@@ -1195,14 +1343,6 @@ const GitHubImageGenerator = () => {
     }
   };
 
-  const adjustColor = (color: string, amount: number) => {
-    const num = parseInt(color.replace("#", ""), 16);
-    const r = Math.max(0, Math.min(255, (num >> 16) + amount));
-    const g = Math.max(0, Math.min(255, ((num >> 8) & 0x00ff) + amount));
-    const b = Math.max(0, Math.min(255, (num & 0x0000ff) + amount));
-    return `#${((r << 16) | (g << 8) | b).toString(16).padStart(6, "0")}`;
-  };
-
   const downloadImage = () => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -1310,7 +1450,9 @@ const GitHubImageGenerator = () => {
         repoName, description, username, tagline, bgColor, accentColor, textColor,
         useGradient, titleFont, bodyFont, titleSize, descriptionSize, layout,
         pattern, patternOpacity, stats, icon, shadowIntensity, borderRadius,
-        bgBlur, glowEffect, textStroke, textAlign, overlayOpacity
+        bgBlur, glowEffect, textStroke, textAlign, overlayOpacity,
+        titleWeight, bodyWeight, letterSpacing, lineHeight, textTransform,
+        gradientType, gradientAngle, secondaryAccentColor, brightness, contrast, saturation
       }
     };
     const updated = [...savedDesigns, design];
@@ -1345,6 +1487,17 @@ const GitHubImageGenerator = () => {
     setTextStroke(c.textStroke || false);
     setTextAlign(c.textAlign || "center");
     setOverlayOpacity(c.overlayOpacity || 60);
+    if (c.titleWeight) setTitleWeight(c.titleWeight);
+    if (c.bodyWeight) setBodyWeight(c.bodyWeight);
+    if (c.letterSpacing !== undefined) setLetterSpacing(c.letterSpacing);
+    if (c.lineHeight) setLineHeight(c.lineHeight);
+    if (c.textTransform) setTextTransform(c.textTransform);
+    if (c.gradientType) setGradientType(c.gradientType);
+    if (c.gradientAngle !== undefined) setGradientAngle(c.gradientAngle);
+    if (c.secondaryAccentColor) setSecondaryAccentColor(c.secondaryAccentColor);
+    if (c.brightness !== undefined) setBrightness(c.brightness);
+    if (c.contrast !== undefined) setContrast(c.contrast);
+    if (c.saturation !== undefined) setSaturation(c.saturation);
     toast.success("Design loaded!");
   };
 
@@ -1439,6 +1592,34 @@ const GitHubImageGenerator = () => {
 
         <div className="grid lg:grid-cols-2 gap-12 items-start">
           <Card className="p-8 bg-card border-border hover-lift">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex gap-2">
+                <Button 
+                  onClick={undo} 
+                  disabled={historyIndex <= 0}
+                  variant="outline" 
+                  size="sm"
+                  title="Undo (Ctrl+Z)"
+                >
+                  <RefreshCw className="w-4 h-4 mr-1 rotate-180" />
+                  Undo
+                </Button>
+                <Button 
+                  onClick={redo} 
+                  disabled={historyIndex >= history.length - 1}
+                  variant="outline" 
+                  size="sm"
+                  title="Redo (Ctrl+Shift+Z)"
+                >
+                  <RefreshCw className="w-4 h-4 mr-1" />
+                  Redo
+                </Button>
+              </div>
+              <span className="text-xs text-muted-foreground">
+                {history.length > 0 && `${historyIndex + 1}/${history.length}`}
+              </span>
+            </div>
+            
             <Tabs defaultValue="content" className="w-full">
               <TabsList className="grid w-full grid-cols-5 mb-6">
                 <TabsTrigger value="content">Content</TabsTrigger>
@@ -2090,6 +2271,32 @@ const GitHubImageGenerator = () => {
                   </div>
                 </div>
               )}
+
+              <div className="pt-3 border-t border-border">
+                <Label className="mb-2 block text-xs text-muted-foreground">Keyboard Shortcuts</Label>
+                <div className="text-xs space-y-1 text-muted-foreground">
+                  <div className="flex justify-between">
+                    <span>Undo</span>
+                    <kbd className="px-2 py-0.5 bg-muted rounded">Ctrl+Z</kbd>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Redo</span>
+                    <kbd className="px-2 py-0.5 bg-muted rounded">Ctrl+Shift+Z</kbd>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Save Design</span>
+                    <kbd className="px-2 py-0.5 bg-muted rounded">Ctrl+S</kbd>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Download</span>
+                    <kbd className="px-2 py-0.5 bg-muted rounded">Ctrl+D</kbd>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Copy Image</span>
+                    <kbd className="px-2 py-0.5 bg-muted rounded">Ctrl+C</kbd>
+                  </div>
+                </div>
+              </div>
             </div>
           </Card>
 
