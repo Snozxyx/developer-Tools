@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -13,9 +13,12 @@ import { Switch } from "@/components/ui/switch";
 
 type LayoutTemplate = "modern" | "minimal" | "bold" | "gaming" | "gradient" | "glassmorphism" | "neon" | "retro" | "tech" | "corporate" | "cyberpunk" | "elegant";
 type PatternType = "circles" | "grid" | "dots" | "waves" | "hexagons" | "triangles" | "stars" | "mesh" | "noise" | "none";
-type FontFamily = "poppins" | "inter" | "sourcecodepro" | "roboto" | "montserrat" | "playfair" | "orbitron";
+type FontFamily = "poppins" | "inter" | "sourcecodepro" | "roboto" | "montserrat" | "playfair" | "orbitron" | "lato" | "opensans" | "raleway" | "nunito" | "ubuntu" | "merriweather" | "josefinsans" | "inconsolata" | "firamono";
 type IconType = "none" | "star" | "fork" | "eye" | "zap" | "shield";
 type TextAlign = "left" | "center" | "right";
+type FontWeight = "300" | "400" | "500" | "600" | "700" | "800" | "900";
+type TextTransform = "none" | "uppercase" | "lowercase" | "capitalize";
+type GradientType = "linear" | "radial" | "conic";
 
 interface SavedDesign {
   id: string;
@@ -93,13 +96,28 @@ const GitHubImageGenerator = () => {
   const [secondaryText, setSecondaryText] = useState("Built with ❤️");
   const [badges, setBadges] = useState<string[]>(["TypeScript", "React", "Node.js"]);
   const [faviconUrl, setFaviconUrl] = useState("https://github.githubassets.com/favicons/favicon.svg");
+  
+  // Additional advanced styling features
+  const [titleWeight, setTitleWeight] = useState<FontWeight>("700");
+  const [bodyWeight, setBodyWeight] = useState<FontWeight>("400");
+  const [letterSpacing, setLetterSpacing] = useState(0);
+  const [lineHeight, setLineHeight] = useState(1.2);
+  const [textTransform, setTextTransform] = useState<TextTransform>("none");
+  const [gradientType, setGradientType] = useState<GradientType>("linear");
+  const [gradientAngle, setGradientAngle] = useState(135);
+  const [secondaryAccentColor, setSecondaryAccentColor] = useState("#4ecdc4");
+  const [brightness, setBrightness] = useState(100);
+  const [contrast, setContrast] = useState(100);
+  const [saturation, setSaturation] = useState(100);
 
   useEffect(() => {
     generateImage();
   }, [repoName, description, username, tagline, bgColor, accentColor, textColor,
       useGradient, titleFont, bodyFont, titleSize, descriptionSize, layout,
       pattern, patternOpacity, bgImage, logoImage, stats, showStats, icon, shadowIntensity, 
-      borderRadius, bgBlur, glowEffect, textStroke, textAlign, overlayOpacity, secondaryText, badges, faviconUrl]);
+      borderRadius, bgBlur, glowEffect, textStroke, textAlign, overlayOpacity, secondaryText, badges, faviconUrl,
+      titleWeight, bodyWeight, letterSpacing, lineHeight, textTransform, gradientType, gradientAngle, 
+      secondaryAccentColor, brightness, contrast, saturation, generateImage]);
 
   useEffect(() => {
     const saved = localStorage.getItem('savedGitHubDesigns');
@@ -116,12 +134,21 @@ const GitHubImageGenerator = () => {
       roboto: "Roboto, sans-serif",
       montserrat: "Montserrat, sans-serif",
       playfair: "Playfair Display, serif",
-      orbitron: "Orbitron, sans-serif"
+      orbitron: "Orbitron, sans-serif",
+      lato: "Lato, sans-serif",
+      opensans: "Open Sans, sans-serif",
+      raleway: "Raleway, sans-serif",
+      nunito: "Nunito, sans-serif",
+      ubuntu: "Ubuntu, sans-serif",
+      merriweather: "Merriweather, serif",
+      josefinsans: "Josefin Sans, sans-serif",
+      inconsolata: "Inconsolata, monospace",
+      firamono: "Fira Mono, monospace"
     };
     return fonts[font];
   };
 
-  const generateImage = async () => {
+  const generateImage = useCallback(async () => {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
@@ -135,10 +162,14 @@ const GitHubImageGenerator = () => {
       const img = new Image();
       img.crossOrigin = "anonymous";
       img.onload = () => {
-        // Apply blur to background image if enabled
-        if (bgBlur > 0) {
-          ctx.filter = `blur(${bgBlur}px)`;
-        }
+        // Apply filters to background image if enabled
+        const filters = [];
+        if (bgBlur > 0) filters.push(`blur(${bgBlur}px)`);
+        if (brightness !== 100) filters.push(`brightness(${brightness}%)`);
+        if (contrast !== 100) filters.push(`contrast(${contrast}%)`);
+        if (saturation !== 100) filters.push(`saturate(${saturation}%)`);
+        
+        ctx.filter = filters.length > 0 ? filters.join(' ') : 'none';
         ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
         ctx.filter = "none";
         
@@ -150,9 +181,30 @@ const GitHubImageGenerator = () => {
       img.src = bgImage;
     } else {
       if (useGradient) {
-        const gradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
-        gradient.addColorStop(0, bgColor);
-        gradient.addColorStop(1, adjustColor(bgColor, -20));
+        let gradient;
+        if (gradientType === "linear") {
+          const angle = (gradientAngle * Math.PI) / 180;
+          const x1 = canvas.width / 2 - Math.cos(angle) * canvas.width / 2;
+          const y1 = canvas.height / 2 - Math.sin(angle) * canvas.height / 2;
+          const x2 = canvas.width / 2 + Math.cos(angle) * canvas.width / 2;
+          const y2 = canvas.height / 2 + Math.sin(angle) * canvas.height / 2;
+          gradient = ctx.createLinearGradient(x1, y1, x2, y2);
+          gradient.addColorStop(0, bgColor);
+          gradient.addColorStop(0.5, secondaryAccentColor + "40");
+          gradient.addColorStop(1, adjustColor(bgColor, -20));
+        } else if (gradientType === "radial") {
+          gradient = ctx.createRadialGradient(canvas.width / 2, canvas.height / 2, 0, canvas.width / 2, canvas.height / 2, canvas.width / 2);
+          gradient.addColorStop(0, bgColor);
+          gradient.addColorStop(0.7, secondaryAccentColor + "30");
+          gradient.addColorStop(1, adjustColor(bgColor, -30));
+        } else {
+          // conic gradient fallback to linear
+          gradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
+          gradient.addColorStop(0, bgColor);
+          gradient.addColorStop(0.33, accentColor + "40");
+          gradient.addColorStop(0.66, secondaryAccentColor + "40");
+          gradient.addColorStop(1, adjustColor(bgColor, -20));
+        }
         ctx.fillStyle = gradient;
       } else {
         ctx.fillStyle = bgColor;
@@ -212,7 +264,10 @@ const GitHubImageGenerator = () => {
 
       ctx.shadowBlur = 0;
     }
-  };
+  }, [repoName, description, username, tagline, bgColor, accentColor, textColor,
+      useGradient, titleFont, bodyFont, titleSize, descriptionSize, layout,
+      pattern, patternOpacity, bgImage, logoImage, stats, showStats, icon, shadowIntensity, 
+      borderRadius, bgBlur, glowEffect, textStroke, textAlign, overlayOpacity, secondaryText, badges, faviconUrl]);
 
   const drawPattern = (ctx: CanvasRenderingContext2D, width: number, height: number) => {
     ctx.globalAlpha = patternOpacity / 100;
@@ -270,7 +325,7 @@ const GitHubImageGenerator = () => {
           ctx.stroke();
         }
         break;
-      case "hexagons":
+      case "hexagons": {
         const hexSize = 40;
         for (let y = 0; y < height; y += hexSize * 1.5) {
           for (let x = 0; x < width; x += hexSize * Math.sqrt(3)) {
@@ -279,6 +334,7 @@ const GitHubImageGenerator = () => {
           }
         }
         break;
+      }
       case "triangles":
         for (let i = 0; i < 20; i++) {
           const x = Math.random() * width;
@@ -594,6 +650,15 @@ const GitHubImageGenerator = () => {
     ctx.closePath();
   };
 
+  const applyTextTransform = (text: string) => {
+    switch (textTransform) {
+      case "uppercase": return text.toUpperCase();
+      case "lowercase": return text.toLowerCase();
+      case "capitalize": return text.charAt(0).toUpperCase() + text.slice(1).toLowerCase();
+      default: return text;
+    }
+  };
+
   const drawModernLayout = (ctx: CanvasRenderingContext2D) => {
     const centerX = 640;
     const centerY = 320;
@@ -607,12 +672,17 @@ const GitHubImageGenerator = () => {
     }
 
     ctx.fillStyle = textColor;
-    ctx.font = `bold ${titleSize}px ${getFontFamily(titleFont)}`;
+    ctx.font = `${titleWeight} ${titleSize}px ${getFontFamily(titleFont)}`;
     ctx.textAlign = "center";
-    ctx.fillText(repoName, centerX, centerY);
+    if (letterSpacing !== 0) {
+      ctx.letterSpacing = `${letterSpacing}px`;
+    }
+    const transformedTitle = applyTextTransform(repoName);
+    ctx.fillText(transformedTitle, centerX, centerY);
+    ctx.letterSpacing = "0px";
 
     ctx.fillStyle = adjustColor(textColor, -60);
-    ctx.font = `${descriptionSize}px ${getFontFamily(bodyFont)}`;
+    ctx.font = `${bodyWeight} ${descriptionSize}px ${getFontFamily(bodyFont)}`;
     ctx.fillText(description, centerX, centerY + 60);
 
     ctx.fillStyle = accentColor;
@@ -1182,6 +1252,32 @@ const GitHubImageGenerator = () => {
     toast.success("Colors randomized!");
   };
 
+  const applyColorScheme = (scheme: string) => {
+    const schemes: Record<string, { bg: string; accent: string; secondary: string; text: string }> = {
+      ocean: { bg: "#0a2342", accent: "#2ca58d", secondary: "#84bcda", text: "#f1f1f1" },
+      sunset: { bg: "#1a1423", accent: "#f77f00", secondary: "#fcbf49", text: "#eae2b7" },
+      forest: { bg: "#0d1b2a", accent: "#2d6a4f", secondary: "#52b788", text: "#d8f3dc" },
+      monochrome: { bg: "#1a1a1a", accent: "#ffffff", secondary: "#cccccc", text: "#f5f5f5" },
+      cyberpunk: { bg: "#0a0e27", accent: "#ff006e", secondary: "#00f5ff", text: "#ffffff" },
+      vintage: { bg: "#2d2424", accent: "#d4a373", secondary: "#8b6f47", text: "#f5e6d3" },
+      midnight: { bg: "#0f0e17", accent: "#ff8906", secondary: "#f25f4c", text: "#fffffe" },
+      nature: { bg: "#132a13", accent: "#90a955", secondary: "#ecf39e", text: "#f0f7ee" },
+      pastel: { bg: "#fef6f0", accent: "#ff6b9d", secondary: "#c9ada7", text: "#22223b" },
+      corporate: { bg: "#14213d", accent: "#fca311", secondary: "#e5e5e5", text: "#ffffff" },
+      neon: { bg: "#000000", accent: "#00ff41", secondary: "#ff00ff", text: "#ffffff" },
+      royal: { bg: "#1a0b2e", accent: "#7b2cbf", secondary: "#c77dff", text: "#e0aaff" }
+    };
+    
+    const selected = schemes[scheme];
+    if (selected) {
+      setBgColor(selected.bg);
+      setAccentColor(selected.accent);
+      setSecondaryAccentColor(selected.secondary);
+      setTextColor(selected.text);
+      toast.success(`${scheme.charAt(0).toUpperCase() + scheme.slice(1)} color scheme applied!`);
+    }
+  };
+
   const applyTemplate = (template: LayoutTemplate) => {
     setLayout(template);
     const templates: Record<LayoutTemplate, { pattern: PatternType; titleFont: FontFamily; bodyFont: FontFamily }> = {
@@ -1344,11 +1440,12 @@ const GitHubImageGenerator = () => {
         <div className="grid lg:grid-cols-2 gap-12 items-start">
           <Card className="p-8 bg-card border-border hover-lift">
             <Tabs defaultValue="content" className="w-full">
-              <TabsList className="grid w-full grid-cols-4 mb-6">
+              <TabsList className="grid w-full grid-cols-5 mb-6">
                 <TabsTrigger value="content">Content</TabsTrigger>
                 <TabsTrigger value="style">Style</TabsTrigger>
                 <TabsTrigger value="layout">Layout</TabsTrigger>
                 <TabsTrigger value="images">Images</TabsTrigger>
+                <TabsTrigger value="advanced">Advanced</TabsTrigger>
               </TabsList>
 
               <TabsContent value="content" className="space-y-4 max-h-[500px] overflow-y-auto pr-2">
@@ -1486,6 +1583,15 @@ const GitHubImageGenerator = () => {
                       <SelectItem value="montserrat">Montserrat</SelectItem>
                       <SelectItem value="playfair">Playfair Display</SelectItem>
                       <SelectItem value="orbitron">Orbitron</SelectItem>
+                      <SelectItem value="lato">Lato</SelectItem>
+                      <SelectItem value="opensans">Open Sans</SelectItem>
+                      <SelectItem value="raleway">Raleway</SelectItem>
+                      <SelectItem value="nunito">Nunito</SelectItem>
+                      <SelectItem value="ubuntu">Ubuntu</SelectItem>
+                      <SelectItem value="merriweather">Merriweather</SelectItem>
+                      <SelectItem value="josefinsans">Josefin Sans</SelectItem>
+                      <SelectItem value="inconsolata">Inconsolata</SelectItem>
+                      <SelectItem value="firamono">Fira Mono</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -1504,6 +1610,15 @@ const GitHubImageGenerator = () => {
                       <SelectItem value="montserrat">Montserrat</SelectItem>
                       <SelectItem value="playfair">Playfair Display</SelectItem>
                       <SelectItem value="orbitron">Orbitron</SelectItem>
+                      <SelectItem value="lato">Lato</SelectItem>
+                      <SelectItem value="opensans">Open Sans</SelectItem>
+                      <SelectItem value="raleway">Raleway</SelectItem>
+                      <SelectItem value="nunito">Nunito</SelectItem>
+                      <SelectItem value="ubuntu">Ubuntu</SelectItem>
+                      <SelectItem value="merriweather">Merriweather</SelectItem>
+                      <SelectItem value="josefinsans">Josefin Sans</SelectItem>
+                      <SelectItem value="inconsolata">Inconsolata</SelectItem>
+                      <SelectItem value="firamono">Fira Mono</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -1592,6 +1707,22 @@ const GitHubImageGenerator = () => {
                     <Sparkles className="w-4 h-4 mr-2" />
                     Randomize Colors
                   </Button>
+                </div>
+
+                <div className="space-y-2 pt-4 border-t border-border">
+                  <Label>Color Schemes</Label>
+                  <div className="grid grid-cols-2 gap-2">
+                    {["ocean", "sunset", "forest", "monochrome", "cyberpunk", "vintage", "midnight", "nature", "pastel", "corporate", "neon", "royal"].map((scheme) => (
+                      <Button
+                        key={scheme}
+                        onClick={() => applyColorScheme(scheme)}
+                        variant="outline"
+                        className="capitalize text-xs"
+                      >
+                        {scheme}
+                      </Button>
+                    ))}
+                  </div>
                 </div>
               </TabsContent>
 
@@ -1744,6 +1875,149 @@ const GitHubImageGenerator = () => {
 
                 <div className="pt-4 border-t border-border">
                   <p className="text-sm text-muted-foreground">Quick tip: Upload a transparent PNG logo for best results</p>
+                </div>
+              </TabsContent>
+
+              <TabsContent value="advanced" className="space-y-4 max-h-[500px] overflow-y-auto pr-2">
+                <div className="space-y-3">
+                  <h3 className="font-semibold text-sm flex items-center gap-2">
+                    <Palette className="w-4 h-4" />
+                    Typography Controls
+                  </h3>
+                  
+                  <div className="space-y-2">
+                    <Label>Title Font Weight</Label>
+                    <Select value={titleWeight} onValueChange={(v) => setTitleWeight(v as FontWeight)}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="300">Light (300)</SelectItem>
+                        <SelectItem value="400">Regular (400)</SelectItem>
+                        <SelectItem value="500">Medium (500)</SelectItem>
+                        <SelectItem value="600">Semi-Bold (600)</SelectItem>
+                        <SelectItem value="700">Bold (700)</SelectItem>
+                        <SelectItem value="800">Extra-Bold (800)</SelectItem>
+                        <SelectItem value="900">Black (900)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Body Font Weight</Label>
+                    <Select value={bodyWeight} onValueChange={(v) => setBodyWeight(v as FontWeight)}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="300">Light (300)</SelectItem>
+                        <SelectItem value="400">Regular (400)</SelectItem>
+                        <SelectItem value="500">Medium (500)</SelectItem>
+                        <SelectItem value="600">Semi-Bold (600)</SelectItem>
+                        <SelectItem value="700">Bold (700)</SelectItem>
+                        <SelectItem value="800">Extra-Bold (800)</SelectItem>
+                        <SelectItem value="900">Black (900)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Letter Spacing: {letterSpacing}px</Label>
+                    <Slider value={[letterSpacing]} onValueChange={(v) => setLetterSpacing(v[0])} min={-5} max={20} step={1} />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Line Height: {lineHeight.toFixed(1)}</Label>
+                    <Slider value={[lineHeight]} onValueChange={(v) => setLineHeight(v[0])} min={0.8} max={2.5} step={0.1} />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Text Transform</Label>
+                    <Select value={textTransform} onValueChange={(v) => setTextTransform(v as TextTransform)}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">None</SelectItem>
+                        <SelectItem value="uppercase">UPPERCASE</SelectItem>
+                        <SelectItem value="lowercase">lowercase</SelectItem>
+                        <SelectItem value="capitalize">Capitalize</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                <div className="space-y-3 pt-4 border-t border-border">
+                  <h3 className="font-semibold text-sm flex items-center gap-2">
+                    <Layers className="w-4 h-4" />
+                    Gradient Controls
+                  </h3>
+
+                  <div className="space-y-2">
+                    <Label>Gradient Type</Label>
+                    <Select value={gradientType} onValueChange={(v) => setGradientType(v as GradientType)}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="linear">Linear</SelectItem>
+                        <SelectItem value="radial">Radial</SelectItem>
+                        <SelectItem value="conic">Conic</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {gradientType === "linear" && (
+                    <div className="space-y-2">
+                      <Label>Gradient Angle: {gradientAngle}°</Label>
+                      <Slider value={[gradientAngle]} onValueChange={(v) => setGradientAngle(v[0])} min={0} max={360} step={15} />
+                    </div>
+                  )}
+
+                  <div className="space-y-2">
+                    <Label>Secondary Accent Color</Label>
+                    <Input
+                      type="color"
+                      value={secondaryAccentColor}
+                      onChange={(e) => setSecondaryAccentColor(e.target.value)}
+                      className="w-full h-10 cursor-pointer"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-3 pt-4 border-t border-border">
+                  <h3 className="font-semibold text-sm flex items-center gap-2">
+                    <ImageIcon className="w-4 h-4" />
+                    Image Filters
+                  </h3>
+
+                  <div className="space-y-2">
+                    <Label>Brightness: {brightness}%</Label>
+                    <Slider value={[brightness]} onValueChange={(v) => setBrightness(v[0])} min={0} max={200} step={10} />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Contrast: {contrast}%</Label>
+                    <Slider value={[contrast]} onValueChange={(v) => setContrast(v[0])} min={0} max={200} step={10} />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Saturation: {saturation}%</Label>
+                    <Slider value={[saturation]} onValueChange={(v) => setSaturation(v[0])} min={0} max={200} step={10} />
+                  </div>
+
+                  <Button 
+                    onClick={() => {
+                      setBrightness(100);
+                      setContrast(100);
+                      setSaturation(100);
+                    }}
+                    variant="outline"
+                    className="w-full"
+                  >
+                    <RefreshCw className="w-4 h-4 mr-2" />
+                    Reset Filters
+                  </Button>
                 </div>
               </TabsContent>
             </Tabs>
