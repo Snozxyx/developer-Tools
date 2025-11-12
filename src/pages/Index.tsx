@@ -16,6 +16,16 @@ const Index = () => {
       status: "active"
     },
     {
+      id: "fivem-banner-creator",
+      title: "FiveM Banner Creator",
+      description: "Create stunning animated and static banners for your FiveM server with custom themes and effects",
+      icon: Sparkles,
+      gradient: "from-green-500 to-emerald-500",
+      features: ["Animated GIF", "Theme Presets", "Custom Effects", "Instant Export"],
+      link: "/tools/fivem-banner-creator",
+      status: "active"
+    },
+    {
       id: "code-snippet-beautifier",
       title: "Code Snippet Beautifier",
       description: "Transform your code into beautiful, shareable images with syntax highlighting",
@@ -32,16 +42,6 @@ const Index = () => {
       icon: Palette,
       gradient: "from-purple-500 to-pink-500",
       features: ["AI-Powered", "Export to CSS", "Accessibility Check"],
-      link: "#",
-      status: "coming-soon"
-    },
-    {
-      id: "svg-pattern-maker",
-      title: "SVG Pattern Maker",
-      description: "Create unique SVG patterns and backgrounds for your projects",
-      icon: Sparkles,
-      gradient: "from-green-500 to-teal-500",
-      features: ["Infinite Patterns", "Customizable", "Export SVG/CSS"],
       link: "#",
       status: "coming-soon"
     }
